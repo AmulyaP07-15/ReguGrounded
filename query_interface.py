@@ -27,8 +27,7 @@ class QueryInterface:
 
 def main():
     """Simple CLI entry point for testing."""
-    # replace this import with the actual retrieval function later
-    from retriever import retrieve
+    from src.retriever import retrieve
 
     interface = QueryInterface(retriever_func=retrieve)
 
