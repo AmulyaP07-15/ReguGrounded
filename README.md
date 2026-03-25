@@ -1,4 +1,4 @@
-# ReguGrounded — Phase 1 Setup Guide
+# ReguGrounded
 
 ## Overview
 
@@ -11,8 +11,6 @@ The system combines:
 * **structured evidence synthesis**
 
 The goal is to prevent hallucinated regulatory answers by grounding all responses in real regulatory text.
-
-Phase 1 focuses on building the **core pipeline** before adding evaluation and agentic retrieval.
 
 ---
 
@@ -43,14 +41,25 @@ Grounded Response + Citations
 ```
 ReguGrounded/
 │
-├── query_interface.py
-├── rlm_engine.py
-├── reasoning_orchestrator.py
-├── answer_synthesizer.py
-├── retriever.py
+├── query_interface.py          # CLI entry point
+├── rlm_engine.py               # LLM query decomposition
+├── reasoning_orchestrator.py   # Retrieval orchestration
+├── answer_synthesizer.py       # Answer + citation formatting
+│
+├── src/                        # Data & retrieval layer
+│   ├── pdf_ingestion.py        # Extract and clean text from PDFs
+│   ├── chunker.py              # Split by article/section with metadata
+│   ├── embedder.py             # Generate embeddings + upload to Pinecone
+│   ├── process_all_pdfs.py     # Run full ingestion pipeline
+│   └── retriever.py            # Query Pinecone and return ranked chunks
+│
+├── data/
+│   ├── raw/                    # Source PDFs (not committed)
+│   ├── processed/              # Cleaned text per document
+│   └── chunks/                 # Structured JSON chunks with metadata
 │
 ├── requirements.txt
-├── .env
+├── .env                        # API keys (not committed)
 └── README.md
 ```
 
@@ -58,32 +67,21 @@ ReguGrounded/
 
 # Responsibilities
 
-### Amulya — Data & Retrieval Layer
+### Amulya — Data & Retrieval Layer (`src/`)
 
-Responsible for:
-
-* PDF ingestion
-* structured chunking
-* embedding generation
+* PDF ingestion and text cleaning
+* Structured chunking by article/section
+* Embedding generation (sentence-transformers)
 * Pinecone indexing
-* vector retrieval
+* Vector retrieval
 
-Expected modules:
-
-```
-pdf_ingestion.py
-chunking.py
-embedding_pipeline.py
-retriever.py
-```
-
-The only function the reasoning layer requires is:
+Interface exposed to the reasoning layer:
 
 ```python
 retrieve(query: str, top_k: int) -> list[dict]
 ```
 
-Expected return format:
+Returns:
 
 ```python
 {
@@ -98,26 +96,21 @@ Expected return format:
 }
 ```
 
+Regulatory documents covered:
+- EU AI Act
+- EU AI Act Annex
+- Colorado AI Act
+- NIST AI Risk Management Framework
+- NYC Local Law 144
+
 ---
 
 ### Prisha — Reasoning Layer
 
-Modules:
-
-```
-query_interface.py
-rlm_engine.py
-reasoning_orchestrator.py
-answer_synthesizer.py
-```
-
-Responsibilities:
-
-* query intake
-* LLM query decomposition
-* retrieval orchestration
-* answer synthesis
-* citation formatting
+* `query_interface.py` — query intake and CLI
+* `rlm_engine.py` — LLM query decomposition
+* `reasoning_orchestrator.py` — retrieval orchestration
+* `answer_synthesizer.py` — answer synthesis and citation formatting
 
 ---
 
@@ -126,37 +119,18 @@ Responsibilities:
 ### 1. Clone the repository
 
 ```
-git clone <repo>
+git clone https://github.com/AmulyaP07-15/ReguGrounded.git
 cd ReguGrounded
 ```
 
----
-
-### 2. Create the environment
+### 2. Create and activate the environment
 
 ```
 python3 -m venv RegGrounded_env
-```
-
----
-
-### 3. Activate the environment
-
-macOS / Linux
-
-```
 source RegGrounded_env/bin/activate
 ```
 
-You should see:
-
-```
-(RegGrounded_env)
-```
-
----
-
-### 4. Install dependencies
+### 3. Install dependencies
 
 ```
 pip install -r requirements.txt
@@ -166,24 +140,27 @@ pip install -r requirements.txt
 
 # API Key Setup
 
-Create a `.env` file in the project root.
+Create a `.env` file in the project root:
 
 ```
-OPENAI_API_KEY=your_key_here
+OPENAI_API_KEY=your_openai_key_here
+PINECONE_API_KEY=your_pinecone_key_here
+PINECONE_INDEX_NAME=regugrounded
 ```
 
-This key is used for:
-
-* query decomposition
-* answer synthesis
-
-Do **not commit `.env` to GitHub**.
+Do **not** commit `.env` to GitHub.
 
 ---
 
 # Running the System
 
-Run the CLI interface:
+### Ingest and index documents (run once)
+
+```
+python src/process_all_pdfs.py
+```
+
+### Run the CLI interface
 
 ```
 python query_interface.py
@@ -195,39 +172,16 @@ Example query:
 What bias audit requirements apply to AI hiring systems under NYC Local Law 144 and the EU AI Act?
 ```
 
-Expected pipeline flow:
-
-```
-Query
-↓
-Decomposition
-↓
-Retrieval
-↓
-Evidence synthesis
-↓
-Grounded answer
-```
-
 ---
 
-# Testing Without Pinecone
+# Development Progress
 
-Until the retrieval layer is finished, the system can run using a **mock retriever**.
-
-`retriever.py` currently returns sample regulatory snippets so the reasoning pipeline can be tested independently.
-
-Once the Pinecone retriever is implemented, simply replace the mock function.
-
----
-
-# Development Sequence
-
-1. Complete PDF ingestion and chunking
-2. Generate embeddings and index Pinecone
-3. Implement `retrieve(query)`
-4. Connect retriever to reasoning pipeline
-5. Produce grounded responses with citations
+- [x] PDF ingestion and text cleaning
+- [x] Structured chunking (395 chunks across 5 documents)
+- [x] Embedding generation and Pinecone indexing
+- [x] `retrieve(query)` interface
+- [ ] Connect retriever to reasoning pipeline
+- [ ] End-to-end grounded responses with citations
 
 ---
 
@@ -243,7 +197,7 @@ Once the Pinecone retriever is implemented, simply replace the mock function.
 
 Phase 2 will include:
 
-* agentic RAG (A-RAG)
-* evaluation metrics
-* hallucination detection
-* benchmark comparisons
+* Agentic RAG (A-RAG)
+* Evaluation metrics
+* Hallucination detection
+* Benchmark comparisons
