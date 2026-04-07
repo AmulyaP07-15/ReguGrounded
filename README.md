@@ -47,56 +47,22 @@ Grounded Response + Citations
 ```
 ReguGrounded/
 │
-├── query_interface.py          # Entry point: input/output guardrails, trace IDs, caching
-├── rlm_engine.py               # LLM query decomposition into sub-questions
-├── reasoning_orchestrator.py   # Retrieval orchestration across jurisdictions
-├── answer_synthesizer.py       # Answer + citation formatting via LLM
-├── citation_validator.py       # Post-hoc citation grounding check
-├── query_clarifier.py          # Detects and flags ambiguous queries
+├── query_interface.py          # CLI entry point
+├── rlm_engine.py               # LLM query decomposition
+├── reasoning_orchestrator.py   # Retrieval orchestration
+├── answer_synthesizer.py       # Answer + citation formatting
 │
 ├── src/                        # Data & retrieval layer
 │   ├── pdf_ingestion.py        # Extract and clean text from PDFs
 │   ├── chunker.py              # Split by article/section with metadata
 │   ├── embedder.py             # Generate embeddings + upload to Pinecone
 │   ├── process_all_pdfs.py     # Run full ingestion pipeline
-│   ├── retriever.py            # Base Pinecone retriever
-│   ├── enhanced_retriever.py   # Hybrid retrieval with all 4 improvements
-│   ├── bm25_index.py           # BM25 keyword index over all chunks
-│   ├── query_expander.py       # Rule-based regulatory synonym expansion
-│   ├── reranker.py             # Cross-encoder reranking (2nd pass)
-│   └── retrieval_config.py     # Centralised retrieval tuning parameters
-│
-├── utils/
-│   ├── cache.py                # LRU in-memory + SQLite disk cache
-│   ├── guardrails.py           # Input/output safety validation
-│   ├── logger.py               # Structured logging with decorators
-│   ├── metrics.py              # Per-request latency and usage tracking
-│   ├── rate_limiter.py         # Token-aware OpenAI rate limiter
-│   └── trace.py                # Request-scoped trace IDs via contextvars
-│
-├── eval/
-│   ├── evaluate_retrieval.py   # Retrieval precision/recall metrics
-│   ├── evaluate_citations.py   # Citation accuracy evaluation
-│   ├── evaluate_answers.py     # Answer quality scoring
-│   ├── evaluate_e2e.py         # End-to-end pipeline evaluation
-│   ├── run_all_evals.py        # Single entry point for all evaluations
-│   ├── ground_truth.json       # Hand-labelled ground truth for eval
-│   └── baselines/              # Standard RAG and agentic RAG baselines
-│
-├── tests/
-│   ├── test_retrieval_improvements.py  # BM25, hybrid, expansion, reranker (39 tests)
-│   ├── test_integration.py             # Full pipeline integration tests
-│   ├── test_cache.py                   # Cache layer tests
-│   ├── test_guardrails.py              # Guardrail validation tests
-│   └── test_rate_limiter.py            # Rate limiter tests
+│   └── retriever.py            # Query Pinecone and return ranked chunks
 │
 ├── data/
 │   ├── raw/                    # Source PDFs (not committed)
 │   ├── processed/              # Cleaned text per document
 │   └── chunks/                 # Structured JSON chunks with metadata
-│
-├── scripts/
-│   └── manage_cache.py         # CLI tool to inspect and clear caches
 │
 ├── requirements.txt
 ├── .env                        # API keys (not committed)
@@ -107,14 +73,13 @@ ReguGrounded/
 
 # Responsibilities
 
-### Amulya — Data & Retrieval Layer (`src/`, `utils/`, `eval/`, `tests/`)
+### Amulya — Data & Retrieval Layer (`src/`)
 
 * PDF ingestion and text cleaning
 * Structured chunking by article/section
-* Embedding generation (sentence-transformers) and Pinecone indexing
-* Enhanced hybrid retrieval pipeline (BM25 + semantic + reranking + expansion)
-* Utils layer: caching, guardrails, logging, metrics, rate limiting, trace IDs
-* Evaluation framework and test suite
+* Embedding generation (sentence-transformers)
+* Pinecone indexing
+* Vector retrieval
 
 Interface exposed to the reasoning layer:
 
@@ -148,26 +113,28 @@ Regulatory documents covered:
 
 ### Prisha — Reasoning Layer
 
+* `query_interface.py` — query intake and CLI
 * `rlm_engine.py` — LLM query decomposition
 * `reasoning_orchestrator.py` — retrieval orchestration
 * `answer_synthesizer.py` — answer synthesis and citation formatting
-* `query_interface.py` — query intake and pipeline coordination
-
----
-
-# Engineering Challenges & Solutions
-
-### 1. Legal citations breaking BM25 tokenization
-
-**Problem:** Standard tokenizers split `§ 20-871` into `20` and `871`, and `Article 9` into separate tokens. A keyword search for `§ 20-871` would then return irrelevant chunks containing any number with a hyphen.
-
-**Solution:** Custom `_tokenize()` in `bm25_index.py` pre-processes regulatory text before indexing. It converts `article 9` → `article_9` and `§ 20-871` → `section_20-871` using regex substitution so citations survive as single atomic tokens. Stop words and single-character tokens are stripped to reduce noise.
 
 ---
 
 ### 2. Hybrid score fusion across incompatible scales
 
 **Problem:** BM25 raw scores and Pinecone cosine similarity scores are on completely different scales and distributions. A naïve weighted average would be dominated by whichever scale happened to produce larger numbers.
+
+```
+git clone https://github.com/AmulyaP07-15/ReguGrounded.git
+cd ReguGrounded
+```
+
+### 2. Create and activate the environment
+
+```
+python3 -m venv RegGrounded_env
+source RegGrounded_env/bin/activate
+```
 
 **Solution:** BM25 scores are normalised to [0, 1] before fusion by dividing by the top result's score. The final hybrid score is `semantic_weight × cosine + keyword_weight × bm25_norm`. Weights are dynamically adjusted: queries with legal citations (e.g. `§ 20-871`) or very short queries (≤3 tokens) get a higher keyword weight (0.5 vs 0.4 default) since exact term matching matters more than semantic similarity in those cases.
 
@@ -263,12 +230,6 @@ python src/process_all_pdfs.py
 
 ```
 python query_interface.py
-```
-
-Example query:
-
-```
-What bias audit requirements apply to AI hiring systems under NYC Local Law 144 and the EU AI Act?
 ```
 
 ### Run the test suite

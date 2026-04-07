@@ -199,13 +199,8 @@ def process_query(user_query: str, top_k: int = 5, use_cache: bool = True) -> di
 
 
 def main():
-    """CLI entry point."""
-    import logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    """Simple CLI entry point for testing."""
+    from src.retriever import retrieve
 
     interface = QueryInterface(retriever_func=_get_retriever().retrieve)
     clarifier = QueryClarifier()
