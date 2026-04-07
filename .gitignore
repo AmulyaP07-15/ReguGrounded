@@ -1,5 +1,10 @@
 .env
 RegGrounded_env/
+ReguGrounded_env/
 __pycache__/
 *.pyc
 .DS_Store
+.idea/
+cache/
+logs/
+data/raw/

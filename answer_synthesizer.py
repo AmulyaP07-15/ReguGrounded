@@ -1,89 +1,209 @@
 # answer_synthesizer.py
 
-from typing import Dict, List, Set
+from typing import Dict, List
+
+from openai import OpenAI
+from dotenv import load_dotenv
+
+from utils.logger import setup_logger, log_function_call, log_errors
+from utils.rate_limiter import rate_limiter
+
+load_dotenv()
+
+logger = setup_logger("answer_synthesizer")
 
 
 class AnswerSynthesizer:
-    """Builds a structured final response from retrieved evidence."""
+    """Uses an LLM to generate a grounded answer with inline citations from retrieved evidence."""
 
+    def __init__(self, model: str = "gpt-4o-mini"):
+        self.client = OpenAI()
+        self.model = model
+
+    @log_function_call(logger)
     def synthesize(
         self,
         original_query: str,
         decomposition: Dict,
-        evidence_bundle: List[Dict]
+        evidence_bundle: List[Dict],
     ) -> Dict:
-        """Return final answer, citations, and evidence snippets."""
-        final_answer_parts = []
-        cited_regulations: Set[str] = set()
-        supporting_evidence = []
+        """
+        Generate a natural-language answer with inline citations.
 
+        Returns dict with keys: question, sub_questions, answer, citations.
+        """
+        all_chunks = []
         for bundle in evidence_bundle:
-            jurisdiction = bundle["jurisdiction"]
-            sub_question = bundle["sub_question"]
-            chunks = bundle["retrieved_chunks"]
+            all_chunks.extend(bundle["retrieved_chunks"])
 
-            section_answer = self._build_section_answer(
-                jurisdiction=jurisdiction,
-                sub_question=sub_question,
-                chunks=chunks
-            )
-            final_answer_parts.append(section_answer)
+        citations = self._build_citations(all_chunks)
+        logger.info(f"Built {len(citations)} citations from {len(all_chunks)} chunks")
+        answer = self._llm_synthesize(original_query, evidence_bundle, citations)
 
-            for chunk in chunks:
-                citation = self._format_citation(chunk)
-                if citation:
-                    cited_regulations.add(citation)
-
-                snippet = self._format_snippet(chunk)
-                if snippet:
-                    supporting_evidence.append(snippet)
+        sub_questions = [item["sub_question"] for item in decomposition["sub_questions"]]
 
         return {
-            "query": original_query,
-            "final_answer": "\n\n".join(final_answer_parts).strip(),
-            "cited_regulations": sorted(cited_regulations),
-            "supporting_evidence": supporting_evidence[:5]
+            "question": original_query,
+            "sub_questions": sub_questions,
+            "answer": answer,
+            "citations": citations,
+            "all_chunks": all_chunks,  # passed through for validator; stripped in query_interface
         }
 
-    def _build_section_answer(self, jurisdiction: str, sub_question: str, chunks: List[Dict]) -> str:
-        """Create one answer block for one jurisdiction."""
-        if not chunks:
-            if jurisdiction:
-                return f"{jurisdiction}: No supporting evidence was retrieved."
-            return "No supporting evidence was retrieved."
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
-        best_chunk = chunks[0]
-        best_text = best_chunk["text"]
+    def _build_citations(self, chunks: List[Dict]) -> List[Dict]:
+        """Build deduplicated structured citation list from chunk metadata."""
+        seen = set()
+        citations = []
 
-        if jurisdiction:
-            return f"{jurisdiction}: {best_text}"
-        return best_text
+        for chunk in chunks:
+            law_name = chunk.get("law_name", "")
+            article = chunk.get("article_number")
+            section = chunk.get("section_number")
+            if not law_name:
+                continue
 
-    def _format_citation(self, chunk: Dict) -> str:
-        """Format citation using metadata."""
-        law_name = chunk.get("law_name")
-        article_number = chunk.get("article_number")
-        section_number = chunk.get("section_number")
+            ref = article or section or ""
+            key = (law_name, ref)
+            if key in seen:
+                continue
+            seen.add(key)
 
-        if not law_name:
-            return ""
+            article_label = ""
+            if article:
+                article_label = f"Article {article}"
+            elif section:
+                article_label = f"§ {section}"
 
-        parts = [law_name]
+            # Skip chunks that have no identifiable article or section —
+            # they produce empty citation labels the LLM can't use.
+            if not article_label:
+                continue
 
-        if article_number:
-            parts.append(f"Article {article_number}")
+            text = chunk.get("text", "")
+            excerpt = text[:250].strip() + ("..." if len(text) > 250 else "")
 
-        if section_number:
-            parts.append(f"Section {section_number}")
+            citations.append({
+                "source": law_name,
+                "article": article_label,
+                "excerpt": excerpt,
+                "jurisdiction": law_name,
+            })
 
-        return " — ".join(parts)
+        return citations
 
-    def _format_snippet(self, chunk: Dict) -> str:
-        """Return a short evidence snippet."""
-        text = chunk.get("text", "").strip()
-        if not text:
-            return ""
+    def _llm_synthesize(
+        self,
+        original_query: str,
+        evidence_bundle: List[Dict],
+        citations: List[Dict],
+    ) -> str:
+        """Call the LLM to write the final answer grounded in retrieved evidence."""
+        evidence_text = self._format_evidence_for_prompt(evidence_bundle)
+        citation_refs = self._format_citation_refs(citations)
 
-        if len(text) > 300:
-            return text[:300] + "..."
-        return text
+        prompt = f"""You are a regulatory compliance expert. Answer the user's question using ONLY the provided regulatory evidence below.
+
+Rules:
+- Always cite the FULL law name + section/article together inline.
+  CORRECT:   "NYC Local Law 144 § 20-871 requires a bias audit..."
+  CORRECT:   "EU AI Act Article 9 establishes a risk management system..."
+  INCORRECT: "§ 20-871 requires..."   ← missing law name
+  INCORRECT: "Article 9 establishes..." ← missing law name
+- Only use citations from the Available Citations list below. Do not invent citations.
+- If multiple jurisdictions apply, address each one in turn.
+- Be concise and precise. If the evidence is insufficient, say so clearly.
+
+Examples of correct inline citation style:
+  "NYC Local Law 144 § 20-871 requires employers to conduct a bias audit no more than one year prior to use."
+  "EU AI Act Article 9 mandates a risk management system throughout the AI lifecycle."
+  "Colorado AI Act § 6-1-1707 requires developers to conduct annual impact assessments."
+
+User Question:
+{original_query}
+
+Available Citations:
+{citation_refs}
+
+Retrieved Evidence:
+{evidence_text}
+
+Answer:"""
+
+        try:
+            rate_limiter.acquire(estimated_tokens=1500)
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.error(f"LLM synthesis failed: {e}")
+            return self._fallback_answer(original_query, evidence_bundle, citations)
+
+    def _format_evidence_for_prompt(self, evidence_bundle: List[Dict]) -> str:
+        lines = []
+        for bundle in evidence_bundle:
+            juris = bundle.get("jurisdiction") or "General"
+            lines.append(f"\n[{juris}]")
+            for i, chunk in enumerate(bundle["retrieved_chunks"], 1):
+                law = chunk.get("law_name", "")
+                article = chunk.get("article_number")
+                section = chunk.get("section_number")
+                loc = f"Article {article}" if article else (f"§ {section}" if section else "")
+                ref = f"{law} {loc}".strip()
+                lines.append(f"  ({i}) {ref}: {chunk['text'][:400]}")
+        return "\n".join(lines)
+
+    def _fallback_answer(
+        self,
+        original_query: str,
+        evidence_bundle: List[Dict],
+        citations: List[Dict],
+    ) -> str:
+        """
+        Structured fallback when the LLM is unavailable.
+        Produces a readable summary instead of raw chunk text.
+        """
+        if not any(b["retrieved_chunks"] for b in evidence_bundle):
+            return "No relevant evidence was retrieved for this question."
+
+        parts = [f"Based on retrieved regulatory evidence for: '{original_query}'\n"]
+
+        for bundle in evidence_bundle:
+            juris = bundle.get("jurisdiction") or "General"
+            chunks = bundle["retrieved_chunks"]
+            if not chunks:
+                parts.append(f"{juris}: No relevant chunks retrieved.")
+                continue
+
+            best = chunks[0]
+            law   = best.get("law_name", juris)
+            art   = best.get("article_number")
+            sec   = best.get("section_number")
+            loc   = f"Article {art}" if art else (f"§ {sec}" if sec else "")
+            ref   = f"{law} {loc}".strip()
+            text  = best["text"][:400].strip()
+            parts.append(f"{ref}:\n{text}")
+
+        if citations:
+            cite_labels = ", ".join(
+                f"{c['source']} {c['article']}".strip() for c in citations
+            )
+            parts.append(f"\nRelevant sources: {cite_labels}")
+
+        parts.append("\n(Note: answer generated from retrieved text — LLM synthesis unavailable.)")
+        return "\n\n".join(parts)
+
+    def _format_citation_refs(self, citations: List[Dict]) -> str:
+        if not citations:
+            return "  (none)"
+        lines = []
+        for c in citations:
+            label = f"{c['source']} {c['article']}".strip()
+            lines.append(f"  - {label}")
+        return "\n".join(lines)
