@@ -17,7 +17,8 @@ from openai import OpenAI
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.retriever import retrieve  # noqa: E402
+from src.retriever import retrieve          # noqa: E402
+from citation_validator import validate_citations  # noqa: E402
 
 _client: OpenAI | None = None
 
@@ -33,7 +34,9 @@ def process_query(question: str, top_k: int = 5) -> dict:
     """
     Standard RAG pipeline (baseline).
 
-    Does NOT decompose the question or validate citations.
+    Single retrieve → single LLM call, with NO query decomposition.
+    Citations in the answer ARE validated against retrieved chunks so
+    hallucination_rate is directly comparable to the ReguGrounded pipeline.
 
     Returns the same top-level keys as ReguGrounded's process_query so
     the two can be compared directly in eval scripts.
@@ -42,6 +45,17 @@ def process_query(question: str, top_k: int = 5) -> dict:
     t0 = time.time()
 
     chunks = retrieve(question, top_k=top_k)
+
+    # Flatten chunk metadata to the shape citation_validator expects
+    flat_chunks = [
+        {
+            "law_name":       c["metadata"].get("law_name", ""),
+            "article_number": c["metadata"].get("article_number", ""),
+            "section_number": c["metadata"].get("section_number", ""),
+            "text":           c.get("text", ""),
+        }
+        for c in chunks
+    ]
 
     context = "\n\n".join(
         f"[{i+1}] {c['metadata'].get('law_name','')} "
@@ -52,7 +66,8 @@ def process_query(question: str, top_k: int = 5) -> dict:
 
     prompt = (
         f"Answer the following regulatory compliance question using only the provided context.\n"
-        f"Include relevant article/section citations in your answer.\n\n"
+        f"Always cite the FULL law name and article/section together "
+        f"(e.g. 'EU AI Act Article 9', 'NYC Local Law 144 § 20-871').\n\n"
         f"Question: {question}\n\n"
         f"Context:\n{context}\n\nAnswer:"
     )
@@ -67,21 +82,17 @@ def process_query(question: str, top_k: int = 5) -> dict:
     except Exception as e:
         answer = f"LLM call failed: {e}"
 
+    # Validate citations in the generated answer against retrieved chunks
+    validation = validate_citations(answer, flat_chunks)
+
     latency_ms = int((time.time() - t0) * 1000)
 
     return {
-        "question":     question,
-        "sub_questions":[question],  # no decomposition
-        "answer":       answer,
-        "citations":    [],          # no structured citations
-        "validation": {
-            "total_citations":    0,
-            "valid_citations":    0,
-            "invalid_citations":  0,
-            "accuracy":           None,
-            "hallucination_rate": None,
-            "details":            {"valid": [], "invalid": []},
-        },
+        "question":      question,
+        "sub_questions": [question],  # no decomposition
+        "answer":        answer,
+        "citations":     [],          # no structured citation list (single-pass)
+        "validation":    validation,
         "metadata": {
             "jurisdictions_searched": [],
             "total_chunks_retrieved": len(chunks),
