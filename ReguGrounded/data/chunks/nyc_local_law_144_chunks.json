@@ -1,0 +1,62 @@
+[
+  {
+    "chunk_id": "nyc_local_law_144_chunk_001",
+    "doc_id": "nyc_local_law_144",
+    "section": "Preamble",
+    "heading": "",
+    "text": "Preamble\nLOCAL LAWS\nOF\nTHE CITY OF NEW YORK\nFOR THE YEAR 2021\n______________________\nNo. 144\n______________________\nIntroduced by Council Members Cumbo, Ampry-Samuel, Rosenthal, Cornegy, Kallos, Adams,\nLouis, Chin, Cabrera, Rose, Gibson, Brannan, Rivera, Levine, Ayala, Miller, Levin and\nBarron. Passed under a Message of Necessity from the Mayor.\nA LOCAL LAW\nTo amend the administrative code of the city of New York, in relation to automated\nemployment decision tools\nBe it enacted by the Council as follows:\nSection 1. Chapter 5 of title 20 of the administrative code of the city of New York is amended\nby adding a new subchapter 25 to read as follows:\nSubchapter 25\nAutomated Employment Decision Tools",
+    "char_count": 704,
+    "token_est": 176,
+    "source_file": "data/processed/nyc_local_law_144.txt"
+  },
+  {
+    "chunk_id": "nyc_local_law_144_chunk_002",
+    "doc_id": "nyc_local_law_144",
+    "section": "§ 20-870",
+    "heading": "Definitions. For the purposes of this subchapter, the following terms have the",
+    "text": "§ 20-870 Definitions. For the purposes of this subchapter, the following terms have the\nfollowing meanings:\nAutomated employment decision tool. The term \"automated employment decision tool\" means\nany computational process, derived from machine learning, statistical modeling, data analytics,\nor artificial intelligence, that issues simplified output, including a score, classification, or\nrecommendation, that is used to substantially assist or replace discretionary decision making for\nmaking employment decisions that impact natural persons. The term \"automated employment\ndecision tool\" does not include a tool that does not automate, support, substantially assist or\nreplace discretionary decision-making processes and that does not materially impact natural\npersons, including, but not limited to, a junk email filter, firewall, antivirus software, calculator,\nspreadsheet, database, data set, or other compilation of data.\nBias audit. The term \"bias audit\" means an impartial evaluation by an independent auditor.\nSuch bias audit shall include but not be limited to the testing of an automated employment decision\ntool to assess the tool's disparate impact on persons of any component 1 category required to be\nreported by employers pursuant to subsection (c) of section 2000e-8 of title 42 of the United States\ncode as specified in part 1602.7 of title 29 of the code of federal regulations.\nEmployment decision. The term \"employment decision\" means to screen candidates for\nemployment or employees for promotion within the city.",
+    "char_count": 1536,
+    "token_est": 384,
+    "source_file": "data/processed/nyc_local_law_144.txt"
+  },
+  {
+    "chunk_id": "nyc_local_law_144_chunk_003_a",
+    "doc_id": "nyc_local_law_144",
+    "section": "§ 20-871",
+    "heading": "Requirements for automated employment decision tools. a. In the city, it shall be",
+    "text": "§ 20-871 Requirements for automated employment decision tools. a. In the city, it shall be\nunlawful for an employer or an employment agency to use an automated employment decision tool\nto screen a candidate or employee for an employment decision unless:\n1. Such tool has been the subject of a bias audit conducted no more than one year prior to the\nuse of such tool; and\n2. A summary of the results of the most recent bias audit of such tool as well as the distribution\ndate of the tool to which such audit applies has been made publicly available on the website of the\nemployer or employment agency prior to the use of such tool.\nb. Notices required. In the city, any employer or employment agency that uses an automated\nemployment decision tool to screen an employee or a candidate who has applied for a position for\nan employment decision shall notify each such employee or candidate who resides in the city of the\nfollowing:\n1. That an automated employment decision tool will be used in connection with the assessment\nor evaluation of such employee or candidate that resides in the city. Such notice shall be made no\nless than ten business days before such use and allow a candidate to request an alternative\nselection process or accommodation;\n2. The job qualifications and characteristics that such automated employment decision tool\nwill use in the assessment of such candidate or employee. Such notice shall be made no less than\n10 business days before such use; and\n3. If not disclosed on the employer or employment agency's website, information about the\ntype of data collected for the automated employment decision tool, the source of such data and the\nemployer or employment agency's data retention policy shall be available upon written request by\na candidate or employee. Such information shall be provided within 30 days of the written\nrequest. Information pursuant to this section shall not be disclosed where such disclosure would\nviolate local, state, or federal law, or interfere w",
+    "char_count": 2000,
+    "token_est": 500,
+    "source_file": "data/processed/nyc_local_law_144.txt"
+  },
+  {
+    "chunk_id": "nyc_local_law_144_chunk_004",
+    "doc_id": "nyc_local_law_144",
+    "section": "§ 20-872",
+    "heading": "Penalties. a. Any person that violates any provision of this subchapter or any rule",
+    "text": "on shall be provided within 30 days of the written\nrequest. Information pursuant to this section shall not be disclosed where such disclosure would\nviolate local, state, or federal law, or interfere with a law enforcement investigation.\n\n§ 20-872 Penalties. a. Any person that violates any provision of this subchapter or any rule\npromulgated pursuant to this subchapter is liable for a civil penalty of not more than $500 for a\nfirst violation and each additional violation occurring on the same day as the first violation, and\nnot less than $500 nor more than $1,500 for each subsequent violation.\nb. Each day on which an automated employment decision tool is used in violation of this\nsection shall give rise to a separate violation of subdivision a of section 20-871.\nc. Failure to provide any notice to a candidate or an employee in violation of paragraphs 1, 2\nor 3 of subdivision b of section 20-871 shall constitute a separate violation.\nd. A proceeding to recover any civil penalty authorized by this subchapter is returnable to any\ntribunal established within the office of administrative trials and hearings or within any agency of\nthe city designated to conduct such proceedings.",
+    "char_count": 1191,
+    "token_est": 297,
+    "source_file": "data/processed/nyc_local_law_144.txt"
+  },
+  {
+    "chunk_id": "nyc_local_law_144_chunk_005",
+    "doc_id": "nyc_local_law_144",
+    "section": "§ 20-873",
+    "heading": "Enforcement. The corporation counsel or such other persons designated by the",
+    "text": "§ 20-873 Enforcement. The corporation counsel or such other persons designated by the\ncorporation counsel on behalf of the department may initiate in any court of competent\njurisdiction any action or proceeding that may be appropriate or necessary for correction of any\nviolation issued pursuant this subchapter, including mandating compliance with the provisions of\nthis chapter or such other relief as may be appropriate.",
+    "char_count": 423,
+    "token_est": 105,
+    "source_file": "data/processed/nyc_local_law_144.txt"
+  },
+  {
+    "chunk_id": "nyc_local_law_144_chunk_006",
+    "doc_id": "nyc_local_law_144",
+    "section": "§ 20-874",
+    "heading": "Construction. The provisions of this subchapter shall not be construed to limit any",
+    "text": "§ 20-874 Construction. The provisions of this subchapter shall not be construed to limit any\nright of any candidate or employee for an employment decision to bring a civil action in any court\nof competent jurisdiction, or to limit the authority of the commission on human rights to enforce\nthe provisions of title 8, in accordance with law.\n§ 2. This local law takes effect on January 1, 2023.\nTHE CITY OF NEW YORK, OFFICE OF THE CITY CLERK, s.s.:\nI hereby certify that the foregoing is a true copy of a local law of The City of New York, passed by the Council\non November 10, 2021 and returned unsigned by the Mayor on December 13, 2021.\nMICHAEL M. McSWEENEY, City Clerk, Clerk of the Council.\nCERTIFICATION OF CORPORATION COUNSEL\nI hereby certify that the form of the enclosed local law (Local Law No. 144 of 2021, Council Int. No. 1894-A of\n2020) to be filed with the Secretary of State contains the correct text of the local law passed by the New York City\nCouncil, presented to the Mayor and neither approved nor disapproved within thirty days thereafter.\nSTEPHEN LOUIS, Acting Corporation Counsel.",
+    "char_count": 1103,
+    "token_est": 275,
+    "source_file": "data/processed/nyc_local_law_144.txt"
+  }
+]

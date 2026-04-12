@@ -47,60 +47,23 @@ Grounded Response + Citations
 ```
 ReguGrounded/
 │
-├── test_agentic_rag.py         # End-to-end agentic RAG demo + evaluation  ← START HERE
-├── query_interface.py          # CLI entry point + programmatic API
-├── rlm_engine.py               # LLM query decomposition into sub-questions
-├── reasoning_orchestrator.py   # Parallel evidence retrieval + deduplication
-├── answer_synthesizer.py       # Grounded answer synthesis + citation formatting
-├── citation_validator.py       # Post-hoc hallucination detection
-├── query_clarifier.py          # Interactive clarification (CLI only)
+├── query_interface.py          # CLI entry point
+├── rlm_engine.py               # LLM query decomposition
+├── reasoning_orchestrator.py   # Retrieval orchestration
+├── answer_synthesizer.py       # Answer + citation formatting
 │
-├── src/                        # Data & retrieval layer (Amulya)
-│   ├── process_all_pdfs.py     # One-time ingestion pipeline
+├── src/                        # Data & retrieval layer
 │   ├── pdf_ingestion.py        # Extract and clean text from PDFs
 │   ├── chunker.py              # Split by article/section with metadata
 │   ├── embedder.py             # Generate embeddings + upload to Pinecone
-│   ├── retriever.py            # Base Pinecone retrieval
-│   ├── enhanced_retriever.py   # Hybrid BM25 + semantic, reranking, expansion
-│   ├── bm25_index.py           # Legal citation-aware BM25 index
-│   ├── query_expander.py       # Rule-based regulatory synonym expansion
-│   ├── reranker.py             # Cross-encoder reranking (lazy-loaded)
-│   └── retrieval_config.py     # Feature toggles for retrieval enhancements
-│
-├── utils/                      # Infrastructure
-│   ├── cache.py                # QueryCache (LRU + SQLite) + ComponentCache
-│   ├── guardrails.py           # InputGuard + OutputGuard
-│   ├── rate_limiter.py         # OpenAI token rate limiting
-│   ├── logger.py               # Structured logging + decorators
-│   ├── metrics.py              # MetricsTracker (latency, errors, cache hits)
-│   └── trace.py                # Request trace ID generation
-│
-├── eval/                       # Evaluation suite
-│   ├── run_all_evals.py        # Master evaluation script
-│   ├── evaluate_retrieval.py   # Precision@5, Recall@5, MRR
-│   ├── evaluate_citations.py   # Citation precision, recall, hallucination rate
-│   ├── evaluate_answers.py     # LLM-judge answer quality (0–5 scale)
-│   ├── evaluate_e2e.py         # Success rate, latency percentiles
-│   ├── benchmark_hallucination.py  # Agentic RAG vs standard RAG comparison
-│   ├── ground_truth.json       # 18 annotated test questions
-│   ├── baselines/
-│   │   ├── standard_rag.py     # Baseline: basic RAG without guardrails
-│   │   └── agentic_rag.py      # Baseline: full ReguGrounded pipeline
-│   └── results/                # Timestamped JSON eval reports
-│
-├── tests/                      # 154-test offline suite
-│   ├── test_cache.py
-│   ├── test_guardrails.py
-│   ├── test_integration.py
-│   ├── test_rate_limiter.py
-│   └── test_retrieval_improvements.py
+│   ├── process_all_pdfs.py     # Run full ingestion pipeline
+│   └── retriever.py            # Query Pinecone and return ranked chunks
 │
 ├── data/
 │   ├── raw/                    # Source PDFs (not committed)
 │   ├── processed/              # Cleaned text per document
 │   └── chunks/                 # Structured JSON chunks with metadata
 │
-├── logs/                       # Timestamped log files
 ├── requirements.txt
 ├── .env                        # API keys (not committed)
 └── README.md
@@ -257,116 +220,28 @@ Do **not** commit `.env` to GitHub.
 
 # Running the System
 
-### 1. Ingest and index documents (run once)
+### Ingest and index documents (run once)
 
 ```
 python src/process_all_pdfs.py
 ```
 
-Reads PDFs from `data/raw/`, chunks them by article/section, generates embeddings, and uploads 395 chunks to the Pinecone index. Only needed once per environment.
-
----
-
-### 2. Agentic RAG demo and evaluation
-
-`test_agentic_rag.py` is the main end-to-end test. It runs the full agentic RAG pipeline and shows exactly what happens at each stage.
-
-**Quick mode (3 questions, compact output):**
-```
-python test_agentic_rag.py
-```
-
-**Full mode (all 18 ground-truth questions):**
-```
-python test_agentic_rag.py --mode full
-```
-
-**Verbose mode — shows every pipeline stage per query:**
-```
-python test_agentic_rag.py --verbose
-```
-
-**Single custom question:**
-```
-python test_agentic_rag.py --question "What are the bias audit requirements under NYC Local Law 144?"
-```
-
-**What it prints per query (verbose mode):**
-
-```
-[Stage 1] Query Decomposition
-  Jurisdictions detected: NYC Local Law 144
-  Sub-questions (1):
-    1. [NYC Local Law 144] What are the bias audit requirements...
-
-[Stage 2] Parallel Evidence Retrieval
-  [NYC Local Law 144] → 5 chunk(s) retrieved
-    Top chunk: NYC Local Law 144  score=0.921
-    "Employers must conduct bias audits of automated employment..."
-
-[Stage 3] Grounded Answer Synthesis
-  Answer (842 chars): ...
-
-[Stage 4] Citation Validation
-  [PASS] 3/3 citations matched to retrieved chunks
-  Citation accuracy:   100.0%
-  Hallucination rate:  0.0%  (target: ≤10%)
-```
-
-**Aggregate metrics printed at the end:**
-
-| Metric | Target |
-|---|---|
-| Success rate | ≥ 95% |
-| Citation accuracy | ≥ 90% |
-| Hallucination rate | ≤ 10% |
-| Latency p90 | ≤ 10,000 ms |
-
----
-
-### 3. Interactive CLI
+### Run the CLI interface
 
 ```
 python query_interface.py
 ```
 
-Prompts for a compliance question, runs optional clarification (up to 2 follow-up questions), then runs the full pipeline and displays the answer, citations, and validation stats.
-
----
-
-### 4. Unit and integration tests
+### Run the test suite
 
 ```
-python -m pytest tests/ -v
+python -m pytest tests/
 ```
 
-All 154 tests run fully offline with mocked retrievers and LLM responses.
-
----
-
-### 5. Full evaluation suite
+### Run evaluations
 
 ```
-python eval/run_all_evals.py --mode full --verbose
-```
-
-Runs four evaluation suites in sequence:
-
-| Suite | Script | What it measures |
-|---|---|---|
-| Retrieval quality | `evaluate_retrieval.py` | Precision@5, Recall@5, F1, MRR |
-| Citation accuracy | `evaluate_citations.py` | Precision, Recall, Hallucination Rate |
-| Answer correctness | `evaluate_answers.py` | LLM-judge scores (0–5) for relevance, accuracy, completeness |
-| End-to-end performance | `evaluate_e2e.py` | Success rate, latency p50/p90/p99 |
-
-Saves a timestamped JSON report to `eval/results/`.
-
-Individual suites can also be run directly:
-```
-python eval/evaluate_retrieval.py --top-k 5 --verbose
-python eval/evaluate_citations.py --mode full
-python eval/evaluate_answers.py --mode quick
-python eval/benchmark_hallucination.py --mode full --verbose --save
+python eval/run_all_evals.py
 ```
 
 ---
@@ -386,7 +261,7 @@ python eval/benchmark_hallucination.py --mode full --verbose --save
 - [x] Citation validator (post-hoc hallucination detection)
 - [x] 154-test suite (all passing, fully offline)
 - [x] Evaluation framework with ground truth and baselines
-- [x] End-to-end grounded responses with citations (`test_agentic_rag.py`)
+- [ ] End-to-end grounded responses with citations (integration in progress)
 
 ---
 
