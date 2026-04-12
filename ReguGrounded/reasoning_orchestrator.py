@@ -1,6 +1,5 @@
 # reasoning_orchestrator.py
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, Dict, List, Optional
 
 from utils.logger import setup_logger, log_function_call
@@ -36,51 +35,34 @@ class ReasoningOrchestrator:
         Returns evidence_bundle: list of per-jurisdiction dicts, each with:
             jurisdiction, sub_question, retrieved_chunks (normalized, deduped)
         """
-        items = decomposition["sub_questions"]
+        evidence_bundle = []
+        seen_chunk_ids: set = set()
 
-        def _fetch(item: Dict) -> Dict:
+        for item in decomposition["sub_questions"]:
             jurisdiction = item["jurisdiction"]
             sub_question = item["sub_question"]
             doc_filter   = self._jurisdiction_filter(jurisdiction)
 
+            # Check retrieval cache
             cached_chunks = _component_cache.get_retrieval(sub_question, jurisdiction, top_k)
             if cached_chunks is not None:
+                normalized = cached_chunks
                 logger.debug(f"Retrieval cache hit for: {sub_question[:60]!r}")
-                return {"jurisdiction": jurisdiction, "sub_question": sub_question,
-                        "normalized": cached_chunks, "filter": doc_filter}
+            else:
+                retrieval_ok = True
+                try:
+                    raw_chunks = self._retrieve(sub_question, top_k=top_k, filter=doc_filter)
+                except Exception as e:
+                    logger.error(f"Retrieval failed for '{sub_question[:60]}': {e}")
+                    raw_chunks = []
+                    retrieval_ok = False
 
-            retrieval_ok = True
-            try:
-                raw_chunks = self._retrieve(sub_question, top_k=top_k, filter=doc_filter)
-            except Exception as e:
-                logger.error(f"Retrieval failed for '{sub_question[:60]}': {e}")
-                raw_chunks = []
-                retrieval_ok = False
+                normalized = self._normalize_chunks(raw_chunks)
+                # Only cache successful retrievals — don't persist empty error results
+                if retrieval_ok:
+                    _component_cache.set_retrieval(sub_question, jurisdiction, top_k, normalized)
 
-            normalized = self._normalize_chunks(raw_chunks)
-            if retrieval_ok:
-                _component_cache.set_retrieval(sub_question, jurisdiction, top_k, normalized)
-
-            return {"jurisdiction": jurisdiction, "sub_question": sub_question,
-                    "normalized": normalized, "filter": doc_filter}
-
-        # Fetch all sub-questions in parallel, preserving original order
-        with ThreadPoolExecutor(max_workers=len(items) or 1) as pool:
-            futures = {pool.submit(_fetch, item): i for i, item in enumerate(items)}
-            results_by_index = {}
-            for future in as_completed(futures):
-                results_by_index[futures[future]] = future.result()
-
-        seen_chunk_ids: set = set()
-        evidence_bundle = []
-
-        for i in range(len(items)):
-            r            = results_by_index[i]
-            jurisdiction = r["jurisdiction"]
-            sub_question = r["sub_question"]
-            doc_filter   = r["filter"]
-            normalized   = r["normalized"]
-
+            # Deduplicate across sub-questions (keep first occurrence)
             unique_chunks = []
             for chunk in normalized:
                 cid = chunk.get("chunk_id") or chunk.get("text", "")[:80]
@@ -95,8 +77,8 @@ class ReasoningOrchestrator:
             )
 
             evidence_bundle.append({
-                "jurisdiction":     jurisdiction,
-                "sub_question":     sub_question,
+                "jurisdiction":    jurisdiction,
+                "sub_question":    sub_question,
                 "retrieved_chunks": unique_chunks,
             })
 
