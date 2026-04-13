@@ -1,16 +1,19 @@
 # rlm_engine.py
 
 import json
+import os
 from typing import List, Dict
 
 from openai import OpenAI
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 from utils.logger import setup_logger, log_function_call
 from utils.cache import ComponentCache
 from utils.rate_limiter import rate_limiter
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / ".env")
 
 logger = setup_logger("rlm_engine")
 _component_cache = ComponentCache()
@@ -45,7 +48,7 @@ _KEYWORD_HINTS: Dict[str, List[str]] = {
 class RLMEngine:
     """Decomposes a compliance query into jurisdiction-specific sub-questions."""
 
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, model: str = "gemini-2.0-flash"):
         self.known_jurisdictions = [
             "EU AI Act",
             "NYC Local Law 144",
@@ -53,7 +56,10 @@ class RLMEngine:
             "NIST AI Risk Management Framework",
             "NIST AI RMF",
         ]
-        self.client = OpenAI()
+        self.client = OpenAI(
+            api_key=os.getenv("GEMINI_API_KEY"),
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
         self.model = model
 
     @log_function_call(logger)

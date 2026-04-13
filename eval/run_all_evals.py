@@ -56,6 +56,15 @@ def run_all_evaluations(mode: str = "full", verbose: bool = False, skip: list = 
     print("  ReguGrounded — Full Evaluation Suite")
     print("=" * 70)
 
+    print()
+    print("  CITATION VALIDATION METHODOLOGY")
+    print("  " + "-" * 66)
+    print("  All systems measured using the same citation validator for fair comparison.")
+    print("  - Standard RAG:   Post-hoc validation (not part of baseline system)")
+    print("  - A-RAG:          Post-hoc validation (not part of baseline system)")
+    print("  - ReguGrounded:   Built-in validation (core system component)")
+    print("  " + "-" * 66)
+
     test_data = _load_test_data(mode)
     print(f"\n  Mode: {mode} | Questions: {len(test_data)}\n")
 

@@ -168,11 +168,13 @@ class QueryInterface:
                 "details":            validation_raw["details"],
             },
             "metadata": {
-                "jurisdictions_searched": jurisdictions,
-                "total_chunks_retrieved": len(all_chunks),
-                "latency_ms":             latency_ms,
-                "cache_hit":              False,
-                "guardrail_warnings":     [],   # populated after output guard runs
+                "jurisdictions_searched":  jurisdictions,
+                "total_chunks_retrieved":  len(all_chunks),
+                "latency_ms":              latency_ms,
+                "cache_hit":               False,
+                "guardrail_warnings":      [],   # populated after output guard runs
+                "has_built_in_validation": True,
+                "validation_method":       "built_in_grounded_generation",
             },
         }
 

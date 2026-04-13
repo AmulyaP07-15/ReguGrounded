@@ -8,6 +8,7 @@ by the ReguGrounded agentic approach.
 Flow: Query → retrieve(top_k=5) → single LLM call → answer
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -26,7 +27,10 @@ _client: OpenAI | None = None
 def _get_client() -> OpenAI:
     global _client
     if _client is None:
-        _client = OpenAI()
+        _client = OpenAI(
+            api_key=os.getenv("GEMINI_API_KEY"),
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
     return _client
 
 
@@ -74,7 +78,7 @@ def process_query(question: str, top_k: int = 5) -> dict:
 
     try:
         response = _get_client().chat.completions.create(
-            model="gpt-4o-mini",
+            model="gemini-2.0-flash",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1,
         )
@@ -82,8 +86,14 @@ def process_query(question: str, top_k: int = 5) -> dict:
     except Exception as e:
         answer = f"LLM call failed: {e}"
 
-    # Validate citations in the generated answer against retrieved chunks
+    # Validate citations post-hoc for fair comparison.
+    # Standard RAG does not include validation as a system component — this is
+    # applied externally so hallucination_rate is comparable across all systems.
     validation = validate_citations(answer, flat_chunks)
+    validation["note"] = (
+        "Post-hoc validation for comparison. "
+        "Standard RAG does not include validation as a system component."
+    )
 
     latency_ms = int((time.time() - t0) * 1000)
 
@@ -94,9 +104,11 @@ def process_query(question: str, top_k: int = 5) -> dict:
         "citations":     [],          # no structured citation list (single-pass)
         "validation":    validation,
         "metadata": {
-            "jurisdictions_searched": [],
-            "total_chunks_retrieved": len(chunks),
-            "latency_ms":             latency_ms,
-            "baseline":               "standard_rag",
+            "jurisdictions_searched":  [],
+            "total_chunks_retrieved":  len(chunks),
+            "latency_ms":              latency_ms,
+            "baseline":                "standard_rag",
+            "has_built_in_validation": False,
+            "validation_method":       "post_hoc_for_comparison",
         },
     }

@@ -28,7 +28,7 @@ class ReasoningOrchestrator:
     @log_function_call(logger)
     def run(self, decomposition: Dict, top_k: int = 5) -> List[Dict]:
         """
-        Retrieve evidence for each sub-question.
+        Retrieve evidence for each sub-question in parallel.
 
         When a sub-question has a known jurisdiction, retrieval is filtered to
         that jurisdiction's doc_id so cross-jurisdiction noise is eliminated.
@@ -138,7 +138,6 @@ class ReasoningOrchestrator:
         try:
             return self.retriever_func(query, top_k=top_k, filter=filter)
         except TypeError:
-            # Retriever doesn't accept filter (e.g. old mock) — call without
             return self.retriever_func(query, top_k=top_k)
 
     def _normalize_chunks(self, chunks: List[Dict]) -> List[Dict]:

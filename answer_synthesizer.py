@@ -1,14 +1,17 @@
 # answer_synthesizer.py
 
+import os
 from typing import Dict, List
 
 from openai import OpenAI
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 from utils.logger import setup_logger, log_function_call, log_errors
 from utils.rate_limiter import rate_limiter
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / ".env")
 
 logger = setup_logger("answer_synthesizer")
 
@@ -16,8 +19,11 @@ logger = setup_logger("answer_synthesizer")
 class AnswerSynthesizer:
     """Uses an LLM to generate a grounded answer with inline citations from retrieved evidence."""
 
-    def __init__(self, model: str = "gpt-4o-mini"):
-        self.client = OpenAI()
+    def __init__(self, model: str = "gemini-2.0-flash"):
+        self.client = OpenAI(
+            api_key=os.getenv("GEMINI_API_KEY"),
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
         self.model = model
 
     @log_function_call(logger)

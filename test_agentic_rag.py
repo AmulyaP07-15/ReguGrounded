@@ -23,7 +23,7 @@ the system "thinking":
 
   Stage 3 — Grounded Answer Synthesis
     AnswerSynthesizer builds a structured prompt from the retrieved chunks
-    and calls gpt-4o-mini with a strict grounding rule: the answer must
+    and calls gemini-2.0-flash with a strict grounding rule: the answer must
     cite only what was retrieved — no prior knowledge allowed.
 
   Stage 4 — Citation Validation
@@ -50,7 +50,7 @@ Usage
 
 Requirements
 ------------
-    OPENAI_API_KEY and PINECONE_API_KEY must be set in .env
+    GEMINI_API_KEY and PINECONE_API_KEY must be set in .env
     Pinecone index must already be populated (run: python src/process_all_pdfs.py)
 """
 
@@ -167,10 +167,10 @@ def run_single_query_verbose(
     answer = synthesis["answer"]
     citations = synthesis["citations"]
     print(f"  Answer ({len(answer)} chars):")
-    # Print answer wrapped at ~70 chars
     words = answer.split()
     line, lines = [], []
     for word in words:
+
         line.append(word)
         if len(" ".join(line)) > 66:
             lines.append("  " + " ".join(line))
@@ -288,7 +288,6 @@ def run_batch(
                 error   = str(e)
                 print(f"\n  ERROR: {e}")
         else:
-            # Compact mode — use QueryInterface directly
             interface = QueryInterface(
                 retriever_func=retriever.retrieve,
                 use_cache=False,
@@ -442,7 +441,6 @@ def main():
     print("Pipeline: Decompose → Parallel Retrieve → Synthesize → Validate")
     print("=" * 70)
 
-    # Build question list
     if args.question:
         questions = [{"id": 1, "question": args.question}]
         print(f"\nMode: single custom question")

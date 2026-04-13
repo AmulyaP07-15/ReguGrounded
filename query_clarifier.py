@@ -9,15 +9,18 @@
 
 import json
 import logging
+import os
 import re
 from typing import Optional
+
+from pathlib import Path
 
 from openai import OpenAI
 from dotenv import load_dotenv
 
 from utils.rate_limiter import rate_limiter
 
-load_dotenv()
+load_dotenv(Path(__file__).parent / ".env")
 
 logger = logging.getLogger("query_clarifier")
 
@@ -149,8 +152,11 @@ class QueryClarifier:
         result = pipeline.run(refined)
     """
 
-    def __init__(self, model: str = "gpt-4o-mini"):
-        self.client = OpenAI()
+    def __init__(self, model: str = "gemini-2.0-flash"):
+        self.client = OpenAI(
+            api_key=os.getenv("GEMINI_API_KEY"),
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
         self.model  = model
 
     # ------------------------------------------------------------------
