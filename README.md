@@ -16,22 +16,18 @@ The goal is to prevent hallucinated regulatory answers by grounding all response
 
 # System Architecture
 
+Two pipelines are implemented. Both share the same decomposition and synthesis layers but differ in how they retrieve evidence.
+
+### RLM Pipeline (`query_interface.py`)
 ```
 User Query
      ↓
 Query Interface  (input guardrails, trace ID, rate limiting)
      ↓
-Query Clarifier  (ambiguity detection)
+RLM Decomposition  (LLM → jurisdiction-specific sub-questions)
      ↓
-RLM Decomposition (LLM query decomposition into sub-questions)
-     ↓
-Enhanced Retrieval (per sub-question)
-   ├── Query Expansion     (informal → statutory terminology)
-   ├── Jurisdiction Filter (auto-detect relevant regulation)
-   ├── Hybrid Search       (BM25 keyword + Pinecone semantic)
-   └── Cross-Encoder Rerank (precise 2nd-pass scoring)
-     ↓
-Evidence Collection
+Parallel Retrieval  (one fixed retrieve call per sub-question)
+   └── EnhancedRetriever: hybrid BM25 + semantic, rerank, expand
      ↓
 Answer Synthesis   (LLM grounded in retrieved text only)
      ↓
@@ -40,6 +36,35 @@ Citation Validator (post-hoc hallucination detection)
 Grounded Response + Citations
 ```
 
+### Agentic RAG Pipeline (`agentic_rag_pipeline.py`)
+```
+User Query
+     ↓
+RLM Decomposition  (same as above)
+     ↓
+Agent Loop  ← runs independently per jurisdiction, in parallel
+   ├── ToolSelector  — picks semantic / keyword / hybrid per query
+   ├── EnhancedRetriever  — fetches chunks with chosen search mode
+   ├── EvidenceReflector  — LLM judges: "is this evidence sufficient?"
+   └── if insufficient: reformulate query + switch tool → loop (max 3×)
+     ↓
+Answer Synthesis   (from all accumulated evidence across iterations)
+     ↓
+Citation Validator
+     ↓
+Grounded Response + Citations + Agent Trace
+```
+
+**Key differences:**
+
+| | RLM | Agentic RAG |
+|---|---|---|
+| Retrieval rounds | 1 (fixed) | 1–3 (agent decides) |
+| Tool selection | fixed hybrid | semantic / keyword / hybrid per query |
+| Evidence check | none | LLM reflection after each round |
+| Query reformulation | no | yes, if evidence is weak |
+| Output | answer + citations | answer + citations + `agent_trace` |
+
 ---
 
 # Repository Structure
@@ -47,8 +72,9 @@ Grounded Response + Citations
 ```
 ReguGrounded/
 │
-├── test_agentic_rag.py         # End-to-end agentic RAG demo + evaluation  ← START HERE
-├── query_interface.py          # CLI entry point + programmatic API
+├── test_agentic_rag.py         # Agentic RAG demo + evaluation  ← START HERE
+├── agentic_rag_pipeline.py     # Agentic RAG pipeline (tool selection + reflection loop)
+├── query_interface.py          # RLM pipeline entry point + programmatic API
 ├── rlm_engine.py               # LLM query decomposition into sub-questions
 ├── reasoning_orchestrator.py   # Parallel evidence retrieval + deduplication
 ├── answer_synthesizer.py       # Grounded answer synthesis + citation formatting
@@ -81,11 +107,12 @@ ReguGrounded/
 │   ├── evaluate_citations.py   # Citation precision, recall, hallucination rate
 │   ├── evaluate_answers.py     # LLM-judge answer quality (0–5 scale)
 │   ├── evaluate_e2e.py         # Success rate, latency percentiles
-│   ├── benchmark_hallucination.py  # Agentic RAG vs standard RAG comparison
+│   ├── benchmark_pipelines.py      # 3-way comparison: standard_rag vs RLM vs agentic_rag
+│   ├── benchmark_hallucination.py  # Hallucination-focused comparison (2-way)
 │   ├── ground_truth.json       # 18 annotated test questions
 │   ├── baselines/
-│   │   ├── standard_rag.py     # Baseline: basic RAG without guardrails
-│   │   └── agentic_rag.py      # Baseline: full ReguGrounded pipeline
+│   │   ├── standard_rag.py     # Baseline: single retrieve → synthesize
+│   │   └── agentic_rag.py      # Baseline: wraps agentic_rag_pipeline.py
 │   └── results/                # Timestamped JSON eval reports
 │
 ├── tests/                      # 154-test offline suite
@@ -160,18 +187,6 @@ Regulatory documents covered:
 ### 2. Hybrid score fusion across incompatible scales
 
 **Problem:** BM25 raw scores and Pinecone cosine similarity scores are on completely different scales and distributions. A naïve weighted average would be dominated by whichever scale happened to produce larger numbers.
-
-```
-git clone https://github.com/AmulyaP07-15/ReguGrounded.git
-cd ReguGrounded
-```
-
-### 2. Create and activate the environment
-
-```
-python3 -m venv RegGrounded_env
-source RegGrounded_env/bin/activate
-```
 
 **Solution:** BM25 scores are normalised to [0, 1] before fusion by dividing by the top result's score. The final hybrid score is `semantic_weight × cosine + keyword_weight × bm25_norm`. Weights are dynamically adjusted: queries with legal citations (e.g. `§ 20-871`) or very short queries (≤3 tokens) get a higher keyword weight (0.5 vs 0.4 default) since exact term matching matters more than semantic similarity in those cases.
 
@@ -267,9 +282,9 @@ Reads PDFs from `data/raw/`, chunks them by article/section, generates embedding
 
 ---
 
-### 2. Agentic RAG demo and evaluation
+### 2. Agentic RAG demo
 
-`test_agentic_rag.py` is the main end-to-end test. It runs the full agentic RAG pipeline and shows exactly what happens at each stage.
+`test_agentic_rag.py` runs the `AgenticRAGPipeline` and shows the full agent loop at every stage.
 
 **Quick mode (3 questions, compact output):**
 ```
@@ -281,7 +296,7 @@ python test_agentic_rag.py
 python test_agentic_rag.py --mode full
 ```
 
-**Verbose mode — shows every pipeline stage per query:**
+**Verbose mode — shows every stage including the agent loop:**
 ```
 python test_agentic_rag.py --verbose
 ```
@@ -291,29 +306,42 @@ python test_agentic_rag.py --verbose
 python test_agentic_rag.py --question "What are the bias audit requirements under NYC Local Law 144?"
 ```
 
-**What it prints per query (verbose mode):**
+**What verbose mode prints per query:**
 
 ```
 [Stage 1] Query Decomposition
   Jurisdictions detected: NYC Local Law 144
-  Sub-questions (1):
-    1. [NYC Local Law 144] What are the bias audit requirements...
+  Sub-questions (1): [NYC Local Law 144] What are the bias audit requirements...
 
-[Stage 2] Parallel Evidence Retrieval
-  [NYC Local Law 144] → 5 chunk(s) retrieved
-    Top chunk: NYC Local Law 144  score=0.921
-    "Employers must conduct bias audits of automated employment..."
+[Stage 2] Agent Loop  ← NEW vs RLM pipeline
+  [NYC Local Law 144]  2 iteration(s)  →  8 chunks  avg_score=0.847
+
+    iter 1
+      tool:       semantic  (conceptual question — semantic search)
+      query:      What are the bias audit requirements under NYC Local Law 144
+      new chunks: 5
+      reflect:    sufficient=False | Evidence quality low, missing penalty provisions
+
+    iter 2
+      tool:       hybrid  (retry: switching from semantic to hybrid)
+      query:      NYC Local Law 144 bias audit requirements obligations compliance
+      new chunks: 3
+      reflect:    sufficient=True | Evidence covers audit timing, scope, and exemptions
 
 [Stage 3] Grounded Answer Synthesis
   Answer (842 chars): ...
 
 [Stage 4] Citation Validation
   [PASS] 3/3 citations matched to retrieved chunks
-  Citation accuracy:   100.0%
-  Hallucination rate:  0.0%  (target: ≤10%)
+  Hallucination rate: 0.0%  (target: ≤10%)
 ```
 
-**Aggregate metrics printed at the end:**
+**Compact mode adds `iters=` and `tools=` columns:**
+```
+[01] OK    3241ms  chunks=8  iters=2.0  tools=semantic,hybrid  cit=3/3  | What are the bias...
+```
+
+**Aggregate metrics:**
 
 | Metric | Target |
 |---|---|
@@ -321,6 +349,7 @@ python test_agentic_rag.py --question "What are the bias audit requirements unde
 | Citation accuracy | ≥ 90% |
 | Hallucination rate | ≤ 10% |
 | Latency p90 | ≤ 10,000 ms |
+| Avg iterations/juris | shows agent loop depth |
 
 ---
 
@@ -344,7 +373,57 @@ All 154 tests run fully offline with mocked retrievers and LLM responses.
 
 ---
 
-### 5. Full evaluation suite
+### 5. Pipeline comparison benchmark
+
+Compare all three pipelines side-by-side on the same 18 ground-truth questions:
+
+```
+python eval/benchmark_pipelines.py
+```
+
+**Quick mode (first 5 questions):**
+```
+python eval/benchmark_pipelines.py --mode quick
+```
+
+**Verbose — per-question breakdown:**
+```
+python eval/benchmark_pipelines.py --verbose --save
+```
+
+**Run a subset of systems:**
+```
+python eval/benchmark_pipelines.py --systems rlm agentic_rag
+```
+
+**Example output:**
+
+```
+  Pipeline Comparison Benchmark
+  ──────────────────────────────────────────────────────────────────────
+  Metric                              standard_rag               rlm       agentic_rag
+  ──────────────────────────────────────────────────────────────────────
+  Quality
+    Hallucination rate (all)              18.3%             8.1%             4.2%
+    Citation accuracy                     81.7%            91.9%            95.8%
+    Success rate                         100.0%           100.0%           100.0%
+
+  Retrieval
+    Avg chunks / query                      5.0              8.3             11.4
+    Avg iterations / juris                  N/A              N/A             1.8
+
+  Latency
+    p50                                  1820 ms          2340 ms          4120 ms
+    p90                                  2940 ms          3810 ms          7200 ms
+
+  Improvement over standard_rag
+    rlm          ↓ 10.2%  (better)
+    agentic_rag  ↓ 14.1%  (better)
+```
+
+---
+
+### 6. Full evaluation suite
 
 ```
 python eval/run_all_evals.py --mode full --verbose
@@ -361,7 +440,7 @@ Runs four evaluation suites in sequence:
 
 Saves a timestamped JSON report to `eval/results/`.
 
-Individual suites can also be run directly:
+Individual suites:
 ```
 python eval/evaluate_retrieval.py --top-k 5 --verbose
 python eval/evaluate_citations.py --mode full
@@ -387,6 +466,8 @@ python eval/benchmark_hallucination.py --mode full --verbose --save
 - [x] 154-test suite (all passing, fully offline)
 - [x] Evaluation framework with ground truth and baselines
 - [x] End-to-end grounded responses with citations (`test_agentic_rag.py`)
+- [x] Agentic RAG pipeline with dynamic tool selection + LLM reflection loop (`agentic_rag_pipeline.py`)
+- [x] 3-way pipeline benchmark: standard_rag vs RLM vs agentic_rag (`eval/benchmark_pipelines.py`)
 
 ---
 

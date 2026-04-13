@@ -1,0 +1,74 @@
+{
+  "standard_rag": {
+    "system": "standard_rag",
+    "total_questions": 5,
+    "success_rate": 1.0,
+    "avg_hallucination_rate": 0.0,
+    "hall_rate_cited_only": 0.0,
+    "avg_citation_accuracy": 1.0,
+    "total_citations": 0,
+    "valid_citations": 0,
+    "invalid_citations": 0,
+    "avg_chunks": 5.0,
+    "avg_iterations": null,
+    "avg_latency_ms": 3465.2,
+    "latency_p50": 1793.9,
+    "latency_p90": 6895.1,
+    "latency_p99": 9905.3,
+    "by_jurisdiction": {
+      "EU": 0.0
+    },
+    "by_difficulty": {
+      "medium": 0.0,
+      "easy": 0.0
+    }
+  },
+  "rlm": {
+    "system": "rlm",
+    "total_questions": 5,
+    "success_rate": 1.0,
+    "avg_hallucination_rate": 0.0,
+    "hall_rate_cited_only": 0.0,
+    "avg_citation_accuracy": 1.0,
+    "total_citations": 17,
+    "valid_citations": 17,
+    "invalid_citations": 0,
+    "avg_chunks": 6.8,
+    "avg_iterations": null,
+    "avg_latency_ms": 4048.5,
+    "latency_p50": 4197.1,
+    "latency_p90": 5579.9,
+    "latency_p99": 5815.2,
+    "by_jurisdiction": {
+      "EU": 0.0
+    },
+    "by_difficulty": {
+      "medium": 0.0,
+      "easy": 0.0
+    }
+  },
+  "agentic_rag": {
+    "system": "agentic_rag",
+    "total_questions": 5,
+    "success_rate": 1.0,
+    "avg_hallucination_rate": 0.0286,
+    "hall_rate_cited_only": 0.0286,
+    "avg_citation_accuracy": 0.9714,
+    "total_citations": 18,
+    "valid_citations": 17,
+    "invalid_citations": 1,
+    "avg_chunks": 6.0,
+    "avg_iterations": 1.0,
+    "avg_latency_ms": 4233.5,
+    "latency_p50": 3717.2,
+    "latency_p90": 5244.2,
+    "latency_p99": 5913.6,
+    "by_jurisdiction": {
+      "EU": 0.0286
+    },
+    "by_difficulty": {
+      "medium": 0.0357,
+      "easy": 0.0
+    }
+  }
+}

@@ -2,50 +2,42 @@
 """
 test_agentic_rag.py  —  Agentic RAG End-to-End Demo & Evaluation
 =================================================================
-Runs ReguGrounded's full agentic RAG pipeline on a set of regulatory
-compliance questions and reports per-query traces + aggregate metrics.
+Runs the AgenticRAGPipeline on regulatory compliance questions and
+prints exactly what the agent does at every stage.
 
-What this script does
----------------------
-Each query goes through four stages of the agentic RAG pipeline, and
-this script prints exactly what happens at every stage so you can see
-the system "thinking":
+This pipeline is DIFFERENT from the standard RLM pipeline:
+  RLM:     decompose → retrieve (fixed, one pass) → synthesize → validate
+  Agentic: decompose → [plan tool → retrieve → reflect → loop?] → synthesize → validate
 
+Per-query trace (--verbose mode)
+---------------------------------
   Stage 1 — Query Decomposition
-    RLMEngine detects which regulations are relevant and breaks the query
-    into one focused sub-question per jurisdiction.
+    Same as RLM: RLMEngine breaks the query into jurisdiction sub-questions.
 
-  Stage 2 — Parallel Evidence Retrieval
-    ReasoningOrchestrator fires one retrieval request per sub-question
-    concurrently. Each request uses hybrid BM25 + semantic search with
-    a jurisdiction-scoped Pinecone filter so cross-regulation noise is
-    eliminated. Results are deduplicated across sub-questions.
+  Stage 2 — Agent Loop (NEW — not in RLM)
+    For each jurisdiction, the agent runs up to 3 retrieval iterations:
+      a. PLAN:    ToolSelector picks semantic / keyword / hybrid based on query
+      b. RETRIEVE: EnhancedRetriever fetches chunks with the chosen mode
+      c. REFLECT:  LLM judges whether evidence is sufficient
+      d. ITERATE:  If not sufficient, reformulate query + switch tool, go to (a)
 
   Stage 3 — Grounded Answer Synthesis
-    AnswerSynthesizer builds a structured prompt from the retrieved chunks
-    and calls gpt-4o-mini with a strict grounding rule: the answer must
-    cite only what was retrieved — no prior knowledge allowed.
+    AnswerSynthesizer builds answer from ALL accumulated chunks (across iterations).
 
   Stage 4 — Citation Validation
-    validate_citations compares every citation in the generated answer
-    against the actual chunk metadata. Any citation that doesn't match
-    a retrieved chunk is flagged as a hallucination.
+    validate_citations checks every citation against retrieved chunks.
 
-Aggregate metrics reported at the end
---------------------------------------
-  - Success rate          (% of queries that completed without error)
-  - Latency p50/p90/p99   (response time percentiles in ms)
-  - Citation accuracy     (% of citations matched to real chunks)
-  - Hallucination rate    (% of citations with no matching chunk)
-  - Avg chunks retrieved  (per query)
-  - Avg sub-questions     (per query)
+Aggregate metrics
+-----------------
+  Success rate, latency p50/p90/p99, citation accuracy, hallucination rate,
+  avg chunks/query, avg iterations/jurisdiction.
 
 Usage
 -----
     python test_agentic_rag.py                      # 3-question quick mode
     python test_agentic_rag.py --mode full           # all 18 ground-truth questions
-    python test_agentic_rag.py --verbose             # print per-step trace for each query
-    python test_agentic_rag.py --question "..."      # run a single custom question
+    python test_agentic_rag.py --verbose             # full per-stage + agent trace
+    python test_agentic_rag.py --question "..."      # single custom question
     python test_agentic_rag.py --mode full --verbose # both
 
 Requirements
@@ -57,28 +49,25 @@ Requirements
 import argparse
 import json
 import sys
-import time
 from pathlib import Path
-from typing import Optional
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
-from query_interface import QueryInterface                     # noqa: E402
-from rlm_engine import RLMEngine                              # noqa: E402
-from reasoning_orchestrator import ReasoningOrchestrator      # noqa: E402
-from answer_synthesizer import AnswerSynthesizer              # noqa: E402
-from citation_validator import validate_citations             # noqa: E402
+from agentic_rag_pipeline import AgenticRAGPipeline           # noqa: E402
 
 GROUND_TRUTH_PATH = ROOT / "eval" / "ground_truth.json"
 
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _load_retriever():
-    """Lazy-load the retriever singleton (downloads embedding model on first call)."""
-    from src.retriever import Retriever
-    return Retriever()
+def _load_pipeline() -> AgenticRAGPipeline:
+    """Load EnhancedRetriever + AgenticRAGPipeline (downloads embedding model once)."""
+    from src.enhanced_retriever import EnhancedRetriever
+    from src.retrieval_config import DEFAULT_CONFIG
+    retriever = EnhancedRetriever(config=DEFAULT_CONFIG)
+    return AgenticRAGPipeline(retriever=retriever)
 
 
 def _percentile(values: list, p: int) -> float:
@@ -95,144 +84,130 @@ def _divider(char="─", width=70):
     print(char * width)
 
 
+def _wrap(text: str, indent: str = "  ", width: int = 66) -> str:
+    words = text.split()
+    line, lines = [], []
+    for word in words:
+        line.append(word)
+        if len(" ".join(line)) > width:
+            lines.append(indent + " ".join(line))
+            line = []
+    if line:
+        lines.append(indent + " ".join(line))
+    return "\n".join(lines)
+
+
 # ── Per-query verbose trace ───────────────────────────────────────────────────
 
 def run_single_query_verbose(
     question: str,
-    rlm: RLMEngine,
-    orchestrator: ReasoningOrchestrator,
-    synthesizer: AnswerSynthesizer,
+    pipeline: AgenticRAGPipeline,
     top_k: int = 5,
 ) -> dict:
     """
-    Run one query through the full pipeline, printing each stage.
-
-    Returns the same result dict as QueryInterface.run() so batch
-    evaluation can reuse these results without re-running anything.
+    Run one query through the AgenticRAGPipeline, printing every stage
+    including the full agent loop trace (tool choices, reflections, iterations).
     """
     _divider("═")
     print(f"  QUERY: {question}")
     _divider("═")
 
-    t_start = time.time()
+    # Run the full agentic pipeline
+    result = pipeline.run(question, top_k=top_k)
+
+    latency_ms    = result["metadata"]["latency_ms"]
+    agent_trace   = result["metadata"].get("agent_trace", [])
+    jurisdictions = result["metadata"]["jurisdictions_searched"]
 
     # ── Stage 1: Query Decomposition ─────────────────────────────────────────
     print("\n  [Stage 1] Query Decomposition")
     _divider()
-    decomposition = rlm.decompose(question)
-    jurisdictions = decomposition["jurisdictions"]
-    sub_questions = decomposition["sub_questions"]
-
     if jurisdictions:
         print(f"  Jurisdictions detected: {', '.join(jurisdictions)}")
     else:
         print("  No specific jurisdiction detected — querying all regulations")
 
+    sub_questions = result["sub_questions"]
     print(f"  Sub-questions ({len(sub_questions)}):")
     for i, sq in enumerate(sub_questions, 1):
-        j = sq.get("jurisdiction") or "general"
-        print(f"    {i}. [{j}] {sq['sub_question']}")
+        j = agent_trace[i - 1]["jurisdiction"] if i - 1 < len(agent_trace) else "general"
+        print(f"    {i}. [{j}] {sq}")
 
-    # ── Stage 2: Parallel Evidence Retrieval ─────────────────────────────────
-    print("\n  [Stage 2] Parallel Evidence Retrieval")
+    # ── Stage 2: Agent Loop (per jurisdiction) ────────────────────────────────
+    print("\n  [Stage 2] Agent Loop  ← NEW vs RLM pipeline")
     _divider()
-    evidence_bundle = orchestrator.run(decomposition, top_k=top_k)
-    all_chunks = orchestrator.get_all_chunks(evidence_bundle)
+    for trace in agent_trace:
+        j          = trace["jurisdiction"]
+        n_iters    = trace["iterations"]
+        tools      = trace["tools_used"]
+        reasons    = trace["tool_reasons"]
+        queries    = trace["queries_issued"]
+        new_chunks = trace["new_per_iter"]
+        reflections= trace["reflections"]
+        final_n    = trace["final_chunks"]
+        final_avg  = trace["final_avg_score"]
 
-    for bundle in evidence_bundle:
-        j = bundle.get("jurisdiction") or "general"
-        n = len(bundle["retrieved_chunks"])
-        print(f"  [{j}] → {n} chunk(s) retrieved")
-        if n > 0:
-            top = bundle["retrieved_chunks"][0]
-            law = top.get("law_name") or "unknown"
-            art = top.get("article_number")
-            score = top.get("score")
-            ref = f"Article {art}" if art else ""
-            score_str = f"  score={score:.3f}" if score is not None else ""
-            print(f"    Top chunk: {law} {ref}{score_str}")
-            print(f"    \"{top['text'][:120].strip()}...\"")
+        print(f"\n  [{j}]  {n_iters} iteration(s)  →  {final_n} chunks  avg_score={final_avg}")
 
-    print(f"\n  Total chunks after deduplication: {len(all_chunks)}")
+        for it_idx in range(n_iters):
+            tool    = tools[it_idx]    if it_idx < len(tools)    else "?"
+            reason  = reasons[it_idx]  if it_idx < len(reasons)  else ""
+            query   = queries[it_idx]  if it_idx < len(queries)  else ""
+            new_c   = new_chunks[it_idx] if it_idx < len(new_chunks) else 0
+            refl    = reflections[it_idx] if it_idx < len(reflections) else {}
+
+            suf     = refl.get("sufficient", True)
+            r_text  = refl.get("reasoning", "")
+            gap     = refl.get("gap", "")
+
+            print(f"\n    iter {it_idx + 1}")
+            print(f"      tool:      {tool}  ({reason})")
+            print(f"      query:     {query[:80]}")
+            print(f"      new chunks: {new_c}")
+            print(f"      reflect:   sufficient={suf} | {r_text}")
+            if not suf and gap:
+                print(f"      gap:       {gap}")
+
+    total_chunks = result["metadata"]["total_chunks_retrieved"]
+    print(f"\n  Total chunks accumulated: {total_chunks}")
 
     # ── Stage 3: Grounded Answer Synthesis ───────────────────────────────────
     print("\n  [Stage 3] Grounded Answer Synthesis")
     _divider()
-    synthesis = synthesizer.synthesize(
-        original_query=question,
-        decomposition=decomposition,
-        evidence_bundle=evidence_bundle,
-    )
+    answer    = result["answer"]
+    citations = result["citations"]
 
-    answer = synthesis["answer"]
-    citations = synthesis["citations"]
     print(f"  Answer ({len(answer)} chars):")
-    # Print answer wrapped at ~70 chars
-    words = answer.split()
-    line, lines = [], []
-    for word in words:
-        line.append(word)
-        if len(" ".join(line)) > 66:
-            lines.append("  " + " ".join(line))
-            line = []
-    if line:
-        lines.append("  " + " ".join(line))
-    print("\n".join(lines))
+    print(_wrap(answer))
 
     print(f"\n  Citations ({len(citations)}):")
     for c in citations:
-        src = c.get("source", "")
-        art = c.get("article", "")
-        print(f"    - {src} {art}".rstrip())
+        print(f"    - {c.get('source','')} {c.get('article','')}".rstrip())
 
     # ── Stage 4: Citation Validation ─────────────────────────────────────────
     print("\n  [Stage 4] Citation Validation")
     _divider()
-    validation = validate_citations(answer, all_chunks)
-
-    total = validation["total_citations"]
-    valid = validation["valid_count"]
-    invalid = validation["invalid_count"]
-    accuracy = validation["accuracy"]
-    hallucination_rate = validation["hallucination_rate"]
+    v      = result["validation"]
+    total  = v["total_citations"]
+    valid  = v["valid_citations"]
+    inv    = v["invalid_citations"]
+    acc    = v["accuracy"]
+    h_rate = v["hallucination_rate"]
 
     if total == 0:
         print("  No citations found in answer — nothing to validate")
     else:
-        status = "PASS" if hallucination_rate <= 0.10 else "WARN"
+        status = "PASS" if h_rate <= 0.10 else "WARN"
         print(f"  [{status}] {valid}/{total} citations matched to retrieved chunks")
-        print(f"  Citation accuracy:   {accuracy*100:.1f}%")
-        print(f"  Hallucination rate:  {hallucination_rate*100:.1f}%  (target: ≤10%)")
-        if invalid > 0:
-            print(f"  Unmatched citations:")
-            for d in validation.get("details", []):
-                if not d.get("valid"):
-                    print(f"    ! {d.get('citation', '')}")
+        print(f"  Citation accuracy:   {acc*100:.1f}%")
+        print(f"  Hallucination rate:  {h_rate*100:.1f}%  (target: ≤10%)")
+        if inv > 0:
+            for d in v.get("details", {}).get("invalid", []):
+                print(f"    ! {d}")
 
-    latency_ms = int((time.time() - t_start) * 1000)
     print(f"\n  Latency: {latency_ms} ms")
 
-    return {
-        "question":      question,
-        "sub_questions": [sq["sub_question"] for sq in sub_questions],
-        "answer":        answer,
-        "citations":     citations,
-        "validation": {
-            "total_citations":    total,
-            "valid_citations":    valid,
-            "invalid_citations":  invalid,
-            "accuracy":           accuracy,
-            "hallucination_rate": hallucination_rate,
-            "details":            validation.get("details", []),
-        },
-        "metadata": {
-            "jurisdictions_searched": jurisdictions,
-            "total_chunks_retrieved": len(all_chunks),
-            "latency_ms":             latency_ms,
-            "cache_hit":              False,
-            "guardrail_warnings":     [],
-        },
-    }
+    return result
 
 
 # ── Batch evaluation ──────────────────────────────────────────────────────────
@@ -243,27 +218,24 @@ def run_batch(
     top_k: int = 5,
 ) -> dict:
     """
-    Run every question through the pipeline and collect aggregate metrics.
+    Run every question through AgenticRAGPipeline and collect aggregate metrics.
 
-    When verbose=True, each query gets a full stage-by-stage trace.
-    When verbose=False, a compact one-line summary is printed per query.
+    verbose=True  → full per-stage agent trace per query
+    verbose=False → compact one-line summary per query
 
-    Returns a metrics dict with success_rate, latency percentiles,
-    citation accuracy, hallucination rate, and per-question results.
+    Extra metric vs RLM test: avg_iterations (how many retrieval rounds the
+    agent needed on average per jurisdiction).
     """
-    print("\nLoading retriever (embedding model)...")
-    retriever = _load_retriever()
+    print("\nLoading EnhancedRetriever + AgenticRAGPipeline...")
+    pipeline = _load_pipeline()
 
-    rlm          = RLMEngine()
-    orchestrator = ReasoningOrchestrator(retriever_func=retriever.retrieve)
-    synthesizer  = AnswerSynthesizer()
-
-    per_question = []
-    latencies: list = []
-    accuracies: list = []
+    per_question:        list = []
+    latencies:           list = []
+    accuracies:          list = []
     hallucination_rates: list = []
-    chunk_counts: list = []
-    errors: list = []
+    chunk_counts:        list = []
+    iteration_counts:    list = []
+    errors:              list = []
 
     print(f"\nRunning {len(questions)} question(s)...\n")
 
@@ -271,38 +243,19 @@ def run_batch(
         question = item["question"] if isinstance(item, dict) else item
         qid      = item.get("id", i) if isinstance(item, dict) else i
 
-        if verbose:
-            try:
-                result = run_single_query_verbose(
-                    question=question,
-                    rlm=rlm,
-                    orchestrator=orchestrator,
-                    synthesizer=synthesizer,
-                    top_k=top_k,
-                )
-                success = True
-                error   = None
-            except Exception as e:
-                result  = None
-                success = False
-                error   = str(e)
+        try:
+            if verbose:
+                result = run_single_query_verbose(question, pipeline, top_k=top_k)
+            else:
+                result = pipeline.run(question, top_k=top_k)
+            success = True
+            error   = None
+        except Exception as e:
+            result  = None
+            success = False
+            error   = str(e)
+            if verbose:
                 print(f"\n  ERROR: {e}")
-        else:
-            # Compact mode — use QueryInterface directly
-            interface = QueryInterface(
-                retriever_func=retriever.retrieve,
-                use_cache=False,
-            )
-            t0 = time.time()
-            try:
-                result  = interface.run(user_query=question, top_k=top_k)
-                success = True
-                error   = None
-            except Exception as e:
-                result  = None
-                success = False
-                error   = str(e)
-            latency_override = int((time.time() - t0) * 1000)
 
         if success and result:
             latency_ms = result["metadata"]["latency_ms"]
@@ -310,30 +263,43 @@ def run_batch(
             accuracy   = result["validation"]["accuracy"]
             h_rate     = result["validation"]["hallucination_rate"]
 
+            # Average iterations across all jurisdictions in this query
+            agent_trace = result["metadata"].get("agent_trace", [])
+            avg_iters   = (
+                round(sum(t["iterations"] for t in agent_trace) / len(agent_trace), 1)
+                if agent_trace else 1.0
+            )
+
             latencies.append(latency_ms)
             chunk_counts.append(chunks)
             accuracies.append(accuracy)
             hallucination_rates.append(h_rate)
+            iteration_counts.append(avg_iters)
 
-            flag  = "OK  " if h_rate <= 0.10 else "WARN"
-            ncit  = result["validation"]["total_citations"]
-            nvalid= result["validation"]["valid_citations"]
+            flag   = "OK  " if h_rate <= 0.10 else "WARN"
+            ncit   = result["validation"]["total_citations"]
+            nvalid = result["validation"]["valid_citations"]
 
             if not verbose:
+                tools_used = list({
+                    t for trace in agent_trace for t in trace.get("tools_used", [])
+                })
                 print(
                     f"  [{qid:02d}] {flag}  {latency_ms:6d}ms  "
-                    f"chunks={chunks:2d}  "
+                    f"chunks={chunks:2d}  iters={avg_iters:.1f}  "
+                    f"tools={','.join(tools_used) or '?'}  "
                     f"cit={nvalid}/{ncit}  "
-                    f"| {question[:55]}"
+                    f"| {question[:45]}"
                 )
 
             per_question.append({
-                "id":               qid,
-                "question":         question,
-                "success":          True,
-                "latency_ms":       latency_ms,
-                "chunks":           chunks,
-                "citation_accuracy":accuracy,
+                "id":                qid,
+                "question":          question,
+                "success":           True,
+                "latency_ms":        latency_ms,
+                "chunks":            chunks,
+                "avg_iterations":    avg_iters,
+                "citation_accuracy": accuracy,
                 "hallucination_rate":h_rate,
             })
 
@@ -344,14 +310,15 @@ def run_batch(
                 print(f"  [{qid:02d}] FAIL  --- ms  | {question[:55]}")
                 print(f"        ERROR: {err_msg}")
             per_question.append({
-                "id":               qid,
-                "question":         question,
-                "success":          False,
-                "latency_ms":       0,
-                "chunks":           0,
-                "citation_accuracy":0.0,
+                "id":                qid,
+                "question":          question,
+                "success":           False,
+                "latency_ms":        0,
+                "chunks":            0,
+                "avg_iterations":    0,
+                "citation_accuracy": 0.0,
                 "hallucination_rate":1.0,
-                "error":            err_msg,
+                "error":             err_msg,
             })
 
     n_total   = len(per_question)
@@ -367,6 +334,7 @@ def run_batch(
         "latency_p99":        _percentile(latencies, 99),
         "avg_latency":        round(sum(latencies) / len(latencies), 1) if latencies else 0.0,
         "avg_chunks":         round(sum(chunk_counts) / len(chunk_counts), 1) if chunk_counts else 0.0,
+        "avg_iterations":     round(sum(iteration_counts) / len(iteration_counts), 2) if iteration_counts else 0.0,
         "avg_citation_accuracy":  round(sum(accuracies) / len(accuracies), 4) if accuracies else 0.0,
         "avg_hallucination_rate": round(sum(hallucination_rates) / len(hallucination_rates), 4) if hallucination_rates else 0.0,
         "errors":             errors,
@@ -380,28 +348,29 @@ def print_summary(metrics: dict):
     """Print aggregate metrics with pass/fail against targets."""
 
     def _fmt(val, target, fmt, pass_fn):
-        v_str = format(val, fmt)
-        t_str = format(target, fmt)
+        v_str  = format(val, fmt)
+        t_str  = format(target, fmt)
         status = "PASS" if pass_fn(val, target) else "FAIL"
         return f"{v_str}  (target: {t_str})  [{status}]"
 
     print("\n")
     _divider("═")
-    print("  AGGREGATE METRICS")
+    print("  AGGREGATE METRICS  (AgenticRAGPipeline)")
     _divider("═")
-    print(f"  Questions run:     {metrics['total']}")
-    print(f"  Successful:        {metrics['successful']}")
-    print(f"  Failed:            {metrics['failed']}")
+    print(f"  Questions run:       {metrics['total']}")
+    print(f"  Successful:          {metrics['successful']}")
+    print(f"  Failed:              {metrics['failed']}")
     print()
-    print(f"  Success rate:      {_fmt(metrics['success_rate'],           0.95, '.1%', lambda v,t: v>=t)}")
-    print(f"  Citation accuracy: {_fmt(metrics['avg_citation_accuracy'],  0.90, '.1%', lambda v,t: v>=t)}")
-    print(f"  Hallucination rate:{_fmt(metrics['avg_hallucination_rate'], 0.10, '.1%', lambda v,t: v<=t)}")
-    print(f"  Avg chunks/query:  {metrics['avg_chunks']:.1f}")
+    print(f"  Success rate:        {_fmt(metrics['success_rate'],           0.95, '.1%', lambda v,t: v>=t)}")
+    print(f"  Citation accuracy:   {_fmt(metrics['avg_citation_accuracy'],  0.90, '.1%', lambda v,t: v>=t)}")
+    print(f"  Hallucination rate:  {_fmt(metrics['avg_hallucination_rate'], 0.10, '.1%', lambda v,t: v<=t)}")
+    print(f"  Avg chunks/query:    {metrics['avg_chunks']:.1f}")
+    print(f"  Avg iterations/jur:  {metrics['avg_iterations']:.2f}  ← agentic loop depth")
     print()
-    print(f"  Latency p50:       {metrics['latency_p50']:.0f} ms")
-    print(f"  Latency p90:       {metrics['latency_p90']:.0f} ms  (target: ≤10,000 ms)")
-    print(f"  Latency p99:       {metrics['latency_p99']:.0f} ms")
-    print(f"  Avg latency:       {metrics['avg_latency']:.0f} ms")
+    print(f"  Latency p50:         {metrics['latency_p50']:.0f} ms")
+    print(f"  Latency p90:         {metrics['latency_p90']:.0f} ms  (target: ≤10,000 ms)")
+    print(f"  Latency p99:         {metrics['latency_p99']:.0f} ms")
+    print(f"  Avg latency:         {metrics['avg_latency']:.0f} ms")
 
     if metrics["errors"]:
         print(f"\n  Errors ({len(metrics['errors'])}):")
@@ -425,7 +394,7 @@ def main():
     )
     parser.add_argument(
         "--verbose", action="store_true",
-        help="Print per-stage trace for every query (decomposition → retrieval → synthesis → validation)",
+        help="Print full per-stage trace including agent loop (tool choices, reflections)",
     )
     parser.add_argument(
         "--question", type=str, default=None,
@@ -433,16 +402,15 @@ def main():
     )
     parser.add_argument(
         "--top-k", type=int, default=5,
-        help="Number of chunks to retrieve per sub-question (default: 5)",
+        help="Number of chunks to retrieve per sub-question per iteration (default: 5)",
     )
     args = parser.parse_args()
 
     print("\nReguGrounded — Agentic RAG Test")
     print("=" * 70)
-    print("Pipeline: Decompose → Parallel Retrieve → Synthesize → Validate")
+    print("Pipeline: Decompose → [Plan Tool → Retrieve → Reflect → Loop?] → Synthesize → Validate")
     print("=" * 70)
 
-    # Build question list
     if args.question:
         questions = [{"id": 1, "question": args.question}]
         print(f"\nMode: single custom question")
@@ -452,8 +420,8 @@ def main():
         questions = all_questions[:3] if args.mode == "quick" else all_questions
         print(f"\nMode: {args.mode} ({len(questions)} questions from ground_truth.json)")
 
-    print(f"Verbose: {'yes — showing per-stage trace' if args.verbose else 'no — compact output'}")
-    print(f"top_k:   {args.top_k} chunks per sub-question\n")
+    print(f"Verbose: {'yes — full agent trace per query' if args.verbose else 'no — compact output'}")
+    print(f"top_k:   {args.top_k} chunks per sub-question per iteration\n")
 
     metrics = run_batch(questions, verbose=args.verbose, top_k=args.top_k)
     print_summary(metrics)
