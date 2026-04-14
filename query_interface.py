@@ -135,24 +135,55 @@ class QueryInterface:
             f"{len(jurisdictions)} jurisdiction(s): {jurisdictions}"
         )
 
-        # 3. Synthesize
-        synthesis = self.synthesizer.synthesize(
-            original_query=user_query,
-            decomposition=decomposition,
-            evidence_bundle=evidence_bundle,
-        )
+        # 3 + 4. Synthesize with corrective retry loop.
+        # CAG's key distinction: when citations are not grounded in retrieved
+        # evidence the synthesizer is called again with the bad citations
+        # explicitly forbidden, actively preventing hallucinations.
+        _MAX_RETRIES         = 2
+        _HALLUCINATION_LIMIT = 0.10   # allow up to 10 % hallucination before retrying
 
-        # 4. Validate citations
-        validation_raw = validate_citations(synthesis["answer"], all_chunks)
+        synthesis      = None
+        validation_raw = None
+        invalid_cites  = None   # populated from previous attempt on retry
 
-        if validation_raw["hallucination_rate"] > 0:
-            logger.warning(
-                f"Citation issues detected: {validation_raw['invalid_count']} invalid "
-                f"({validation_raw['hallucination_rate']*100:.1f}% hallucination rate)"
+        for attempt in range(_MAX_RETRIES):
+            synthesis = self.synthesizer.synthesize(
+                original_query=user_query,
+                decomposition=decomposition,
+                evidence_bundle=evidence_bundle,
+                invalid_citations=invalid_cites,
             )
+            validation_raw = validate_citations(synthesis["answer"], all_chunks)
+
+            h_rate = validation_raw["hallucination_rate"]
+
+            if h_rate <= _HALLUCINATION_LIMIT:
+                if attempt > 0:
+                    logger.info(
+                        f"Corrective retry succeeded on attempt {attempt + 1}: "
+                        f"hallucination rate now {h_rate:.1%}"
+                    )
+                break
+
+            # Hallucination threshold exceeded — prepare corrective retry
+            invalid_cites = validation_raw["invalid_citations"]
+            if attempt < _MAX_RETRIES - 1:
+                logger.warning(
+                    f"Attempt {attempt + 1}: hallucination rate {h_rate:.1%} "
+                    f"({validation_raw['invalid_count']} invalid citations). "
+                    f"Retrying with corrective constraints on: {invalid_cites}"
+                )
+            else:
+                logger.error(
+                    f"Max retries reached. Final hallucination rate: {h_rate:.1%}. "
+                    f"Returning best available answer."
+                )
+
+        corrective_action_taken = attempt > 0
+        llm_failed              = synthesis.get("llm_synthesis_failed", False)
 
         latency_ms = int((time.time() - t_start) * 1000)
-        logger.info(f"Pipeline completed in {latency_ms} ms")
+        logger.info(f"Pipeline completed in {latency_ms} ms (attempts: {attempt + 1})")
 
         return {
             "question":      user_query,
@@ -175,6 +206,9 @@ class QueryInterface:
                 "guardrail_warnings":      [],   # populated after output guard runs
                 "has_built_in_validation": True,
                 "validation_method":       "built_in_grounded_generation",
+                "retry_attempts":          attempt + 1,
+                "corrective_action_taken": corrective_action_taken,
+                "llm_synthesis_failed":    llm_failed,
             },
         }
 

@@ -1,0 +1,71 @@
+{
+  "jurisdiction": "NIST",
+  "label": "NIST AI Risk Management Framework",
+  "count": 8,
+  "questions": [
+    {
+      "id": 37,
+      "question": "What does NIST AI RMF GOVERN 1.1 require of organisations?",
+      "ground_truth_answer": "GOVERN 1.1 in the NIST AI Risk Management Framework requires that policies, processes, procedures, and practices across the organisation related to the mapping, measuring, and managing of AI risks are in place, transparent, and implemented effectively. This includes: establishing organisational accountability for AI risk; ensuring AI risk is addressed in enterprise risk management; defining acceptable risk tolerance thresholds; and creating feedback mechanisms so that AI risk practices remain current. GOVERN 1.1 is the foundational subcategory that enables all other GOVERN, MAP, MEASURE, and MANAGE activities.",
+      "expected_citations": [],
+      "jurisdiction": "NIST",
+      "difficulty": "medium"
+    },
+    {
+      "id": 38,
+      "question": "How does the NIST AI RMF MAP function address risks from third-party AI components and supply chain dependencies?",
+      "ground_truth_answer": "The NIST AI RMF MAP function, particularly MAP 2.1 and MAP 2.2, requires organisations to understand and document AI risk in the context of the broader supply chain. This includes identifying risks from third-party datasets, pretrained models, software libraries, and cloud services used in AI system development or deployment. Organisations must assess whether third parties have adequate AI risk management practices, understand contractual obligations related to AI risks, and determine whether dependencies could introduce bias, security vulnerabilities, or reliability failures. Supply chain risk must be re-evaluated when third-party components change.",
+      "expected_citations": [],
+      "jurisdiction": "NIST",
+      "difficulty": "medium"
+    },
+    {
+      "id": 39,
+      "question": "What does the NIST AI RMF MANAGE function recommend when AI risks are found to exceed acceptable thresholds?",
+      "ground_truth_answer": "The NIST AI RMF MANAGE function addresses the response to identified AI risks. MANAGE 1.1 requires that risks identified through MAP and MEASURE be prioritised and treated based on their likelihood and potential impact. When risks exceed acceptable thresholds, organisations may: implement additional technical or procedural controls to mitigate risk; transfer risk through insurance or contractual arrangements; avoid risk by limiting or discontinuing the AI system's use in certain contexts; or accept residual risk with documented rationale and senior leadership approval. MANAGE 3.1 requires that responses are monitored for effectiveness and that documentation is maintained for accountability.",
+      "expected_citations": [],
+      "jurisdiction": "NIST",
+      "difficulty": "hard"
+    },
+    {
+      "id": 40,
+      "question": "What is the distinction between 'explainability' and 'interpretability' in the NIST AI Risk Management Framework?",
+      "ground_truth_answer": "The NIST AI RMF distinguishes explainability and interpretability as related but distinct trustworthy AI characteristics. Explainability refers to the ability to provide reasons and rationale for an AI system's outputs in a way understandable to a specified audience, including non-technical users or affected individuals — the emphasis is on communicating why the AI produced a particular output. Interpretability refers to the meaning of an AI system's outputs in the context of a given situation, focusing on whether outputs can be understood in terms of the domain and purpose — the emphasis is on what the output means. Systems can be interpretable to experts without being explainable to general users.",
+      "expected_citations": [],
+      "jurisdiction": "NIST",
+      "difficulty": "medium"
+    },
+    {
+      "id": 41,
+      "question": "How does the NIST AI RMF MEASURE function incorporate adversarial testing and red-teaming?",
+      "ground_truth_answer": "The NIST AI RMF MEASURE function, particularly MEASURE 2.7, addresses AI system robustness and security through adversarial testing. Organisations are encouraged to conduct red-teaming exercises — structured testing in which adversarial conditions are simulated to uncover failure modes, vulnerabilities, and biases not revealed by standard testing. Red-teaming may include prompt injection attacks for generative AI, adversarial examples for classification systems, or deliberate attempts to elicit harmful outputs. Results from adversarial testing must be documented and fed into the MANAGE function to prioritise risk treatment. Red-teaming should occur before deployment and periodically during operation.",
+      "expected_citations": [],
+      "jurisdiction": "NIST",
+      "difficulty": "hard"
+    },
+    {
+      "id": 42,
+      "question": "What does the NIST AI RMF say about integrating AI risk management into enterprise risk management?",
+      "ground_truth_answer": "The NIST AI RMF GOVERN function, specifically GOVERN 1.4, emphasises that AI risk management should not operate in a silo but must be integrated into the organisation's broader enterprise risk management (ERM) frameworks and business processes. This integration requires: senior leadership commitment to AI risk as part of overall corporate governance; alignment of AI risk appetite with organisational risk tolerance; inclusion of AI risk considerations in board-level risk reporting; and coordination between AI teams and enterprise risk, legal, compliance, and security functions. The NIST framework provides that ERM integration ensures AI-specific risks receive appropriate visibility and resources.",
+      "expected_citations": [],
+      "jurisdiction": "NIST",
+      "difficulty": "medium"
+    },
+    {
+      "id": 43,
+      "question": "What are the NIST AI RMF recommended practices for AI incident response?",
+      "ground_truth_answer": "The NIST AI RMF MANAGE function addresses incident response through MANAGE 3.1 and MANAGE 4.1. Recommended practices include: establishing documented incident response plans before deployment that identify escalation triggers, responsible parties, and communication procedures; defining what constitutes an AI incident (including performance degradation, unexpected outputs, bias findings, or security breaches); maintaining playbooks for common incident types; conducting post-incident reviews to identify root causes; communicating incidents to affected stakeholders including users, operators, and regulators as appropriate; and incorporating incident learnings back into the MAP and MEASURE functions to update risk assessments.",
+      "expected_citations": [],
+      "jurisdiction": "NIST",
+      "difficulty": "medium"
+    },
+    {
+      "id": 44,
+      "question": "What does NIST AI RMF MAP 1.1 require when establishing the context for AI risk assessment?",
+      "ground_truth_answer": "MAP 1.1 in the NIST AI RMF requires organisations to establish the context for AI risk assessment by understanding: the AI system's intended purpose and use cases; the scope of the system including its inputs, outputs, and operating environment; the stage in the AI lifecycle; the stakeholders involved including developers, operators, users, and affected third parties; the potential benefits and anticipated costs or harms; applicable laws, regulations, and standards; and any organisational policies and risk tolerances that apply. Establishing context ensures that subsequent risk mapping, measurement, and management activities are proportionate and relevant to the actual deployment scenario.",
+      "expected_citations": [],
+      "jurisdiction": "NIST",
+      "difficulty": "medium"
+    }
+  ]
+}

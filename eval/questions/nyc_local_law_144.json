@@ -1,0 +1,107 @@
+{
+  "jurisdiction": "NYC",
+  "label": "NYC Local Law 144",
+  "count": 10,
+  "questions": [
+    {
+      "id": 17,
+      "question": "What is the precise definition of an 'automated employment decision tool' under NYC Local Law 144?",
+      "ground_truth_answer": "Under NYC Local Law 144 § 20-870, an automated employment decision tool (AEDT) is defined as any computational process, derived from machine learning, statistical modeling, data analytics, or artificial intelligence, that issues simplified output — including a score, classification, or recommendation — that is used to substantially assist or replace discretionary decision-making for employment decisions regarding persons seeking employment or employees. The key elements are: (1) computational process using ML, statistical modeling, analytics, or AI; (2) issues simplified output; (3) used to substantially assist or replace human discretion in employment decisions.",
+      "expected_citations": [
+        "§ 20-870"
+      ],
+      "jurisdiction": "NYC",
+      "difficulty": "easy"
+    },
+    {
+      "id": 18,
+      "question": "Does NYC Local Law 144 apply when an employer uses an AEDT developed and sold by a third-party vendor?",
+      "ground_truth_answer": "Yes. NYC Local Law 144 places compliance obligations on the employer or employment agency that uses the AEDT, regardless of whether the tool was built internally or acquired from a third-party vendor. The employer is responsible for ensuring a bias audit has been conducted, posting the results, and providing notice to candidates. However, the law does not directly regulate AI vendors themselves — it regulates the employing entities that deploy the tools. Employers cannot transfer compliance responsibility to vendors by contract.",
+      "expected_citations": [
+        "§ 20-871"
+      ],
+      "jurisdiction": "NYC",
+      "difficulty": "medium"
+    },
+    {
+      "id": 19,
+      "question": "What demographic categories must be analysed and reported in a bias audit under NYC Local Law 144?",
+      "ground_truth_answer": "Under NYC Local Law 144 § 20-871, a bias audit must calculate and report the selection rate for each race/ethnicity category and each sex category. The law requires analysis of the impact ratio comparing selection rates across these demographic groups. Where the AEDT scores candidates, scoring rates by category must also be reported. The audit must include intersectional analysis of sex and race/ethnicity categories where data is available. Results must be posted publicly and include the number of individuals assessed and the percentage in each category.",
+      "expected_citations": [
+        "§ 20-871"
+      ],
+      "jurisdiction": "NYC",
+      "difficulty": "medium"
+    },
+    {
+      "id": 20,
+      "question": "Does NYC Local Law 144 apply to evaluating candidates who live outside New York City?",
+      "ground_truth_answer": "NYC Local Law 144 applies based on the residency of the candidate or employee at the time of the employment decision, not the employer's location. The law's notice and bias audit requirements apply when the AEDT is used to evaluate candidates or employees who reside in New York City. If a candidate resides outside NYC, the employer is not required to provide the LL144 notice or conduct a bias audit for that specific evaluation, even if the employer is based in NYC. Employers must therefore track the residency of candidates being evaluated.",
+      "expected_citations": [
+        "§ 20-871"
+      ],
+      "jurisdiction": "NYC",
+      "difficulty": "hard"
+    },
+    {
+      "id": 21,
+      "question": "Can an employer use an AEDT for which the bias audit is more than one year old if the tool has not been used since the audit?",
+      "ground_truth_answer": "No. NYC Local Law 144 § 20-871 requires that a bias audit be conducted no more than one year prior to each use of the AEDT. The one-year requirement is tied to the date of use, not to any prior use. If an employer has not used the tool for over a year since the last audit, a new audit must be conducted before the tool can be used again. There is no exception for dormant or infrequently used tools.",
+      "expected_citations": [
+        "§ 20-871"
+      ],
+      "jurisdiction": "NYC",
+      "difficulty": "hard"
+    },
+    {
+      "id": 22,
+      "question": "What must an employer include in the public posting of bias audit results under NYC Local Law 144?",
+      "ground_truth_answer": "Under NYC Local Law 144 § 20-871(b), employers must post on their website the date of the most recent bias audit; a summary of the results including the selection rate and scoring rate for each race/ethnicity and sex category; the number of individuals the audit data encompasses; the date the AEDT was first used since the most recent bias audit; and the name of the independent auditor. This information must remain publicly available for at least six months after the AEDT is no longer used.",
+      "expected_citations": [
+        "§ 20-871"
+      ],
+      "jurisdiction": "NYC",
+      "difficulty": "medium"
+    },
+    {
+      "id": 23,
+      "question": "What right to an alternative selection process does NYC Local Law 144 grant to candidates?",
+      "ground_truth_answer": "NYC Local Law 144 § 20-871 requires employers and employment agencies to notify candidates and employees of the right to request an alternative selection process or an accommodation. The notice must be provided at least ten business days before the AEDT is used. Employers must describe what alternative processes or accommodations are available. The law does not require employers to provide a specific type of alternative process, but they must inform candidates of what options exist and respond to accommodation requests.",
+      "expected_citations": [
+        "§ 20-871"
+      ],
+      "jurisdiction": "NYC",
+      "difficulty": "medium"
+    },
+    {
+      "id": 24,
+      "question": "How does NYC Local Law 144 define 'independent auditor' and what conflicts of interest are prohibited?",
+      "ground_truth_answer": "NYC Local Law 144 § 20-870 defines an independent auditor as a person or group that is not employed by, and has no financial interest in, the employer, employment agency, or vendor that developed the AEDT being audited. An auditor with any employment relationship or financial stake in the entities benefiting from the audit does not qualify. The auditor must be genuinely independent to ensure the bias audit results are objective and not influenced by business relationships.",
+      "expected_citations": [
+        "§ 20-870"
+      ],
+      "jurisdiction": "NYC",
+      "difficulty": "medium"
+    },
+    {
+      "id": 25,
+      "question": "What are the civil penalties for violations of NYC Local Law 144 and who enforces it?",
+      "ground_truth_answer": "NYC Local Law 144 is enforced by the New York City Department of Consumer and Worker Protection (DCWP). Civil penalties are: up to $500 per day for a first violation; up to $1,500 per day for each subsequent violation. Each day of non-compliance is a separate violation. Violations include: using an AEDT without a valid bias audit; failing to provide required advance notice to candidates; failing to publicly post audit results; and failing to offer an alternative selection process.",
+      "expected_citations": [
+        "§ 20-872"
+      ],
+      "jurisdiction": "NYC",
+      "difficulty": "easy"
+    },
+    {
+      "id": 26,
+      "question": "What is the minimum advance notice period before using an AEDT and what must the notice contain?",
+      "ground_truth_answer": "NYC Local Law 144 § 20-871 requires employers to provide notice to candidates or employees residing in NYC at least ten business days before using the AEDT to screen them. The notice must inform the candidate: that an AEDT will be used; the job qualifications and characteristics the AEDT assesses; the instructions for requesting an alternative selection process or accommodation; and where the bias audit results can be found. The notice must be provided by direct notification to the candidate, not just posted on a website.",
+      "expected_citations": [
+        "§ 20-871"
+      ],
+      "jurisdiction": "NYC",
+      "difficulty": "easy"
+    }
+  ]
+}

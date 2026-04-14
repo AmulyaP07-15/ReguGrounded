@@ -8,30 +8,21 @@ by the ReguGrounded agentic approach.
 Flow: Query → retrieve(top_k=5) → single LLM call → answer
 """
 
-import os
 import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
 load_dotenv(Path(__file__).parent.parent.parent / ".env")
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.retriever import retrieve          # noqa: E402
 from citation_validator import validate_citations  # noqa: E402
+from utils.llm_client import get_llm_client  # noqa: E402
 
-_client: OpenAI | None = None
 
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        _client = OpenAI(
-            api_key=os.getenv("GEMINI_API_KEY"),
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        )
-    return _client
+def _get_client():
+    return get_llm_client()
 
 
 def process_query(question: str, top_k: int = 5) -> dict:
@@ -76,6 +67,7 @@ def process_query(question: str, top_k: int = 5) -> dict:
         f"Context:\n{context}\n\nAnswer:"
     )
 
+    llm_failed = False
     try:
         response = _get_client().chat.completions.create(
             model="gemini-2.0-flash",
@@ -84,7 +76,8 @@ def process_query(question: str, top_k: int = 5) -> dict:
         )
         answer = response.choices[0].message.content.strip()
     except Exception as e:
-        answer = f"LLM call failed: {e}"
+        answer     = f"LLM call failed: {e}"
+        llm_failed = True
 
     # Validate citations post-hoc for fair comparison.
     # Standard RAG does not include validation as a system component — this is
@@ -98,11 +91,12 @@ def process_query(question: str, top_k: int = 5) -> dict:
     latency_ms = int((time.time() - t0) * 1000)
 
     return {
-        "question":      question,
-        "sub_questions": [question],  # no decomposition
-        "answer":        answer,
-        "citations":     [],          # no structured citation list (single-pass)
-        "validation":    validation,
+        "question":         question,
+        "sub_questions":    [question],  # no decomposition
+        "answer":           answer,
+        "citations":        [],          # no structured citation list (single-pass)
+        "validation":       validation,
+        "retrieved_chunks": flat_chunks, # exposed for consistency / eval script access
         "metadata": {
             "jurisdictions_searched":  [],
             "total_chunks_retrieved":  len(chunks),
@@ -110,5 +104,6 @@ def process_query(question: str, top_k: int = 5) -> dict:
             "baseline":                "standard_rag",
             "has_built_in_validation": False,
             "validation_method":       "post_hoc_for_comparison",
+            "llm_synthesis_failed":    llm_failed,
         },
     }

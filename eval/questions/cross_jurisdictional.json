@@ -1,0 +1,122 @@
+{
+  "jurisdiction": "multi",
+  "label": "Cross-Jurisdictional",
+  "count": 9,
+  "questions": [
+    {
+      "id": 45,
+      "question": "How does the definition of 'high-risk AI' differ between the EU AI Act and the Colorado AI Act?",
+      "ground_truth_answer": "The EU AI Act and Colorado AI Act use different frameworks for defining high-risk AI. The EU AI Act (Article 6 and Annex III) defines high-risk AI based on deployment context across eight domains: biometric identification, critical infrastructure, education, employment, access to services, law enforcement, migration and asylum, and administration of justice — with additional risk-based criteria under Article 6(3). The Colorado AI Act defines high-risk AI as a system that makes or substantially assists a consequential decision in specific domains affecting consumers (employment, credit, healthcare, housing, education, insurance). Key differences: the EU framework is broader and more technically detailed; Colorado focuses specifically on consumer-facing consequential decisions and does not address safety components of physical products.",
+      "expected_citations": [
+        "Article 6"
+      ],
+      "jurisdiction": "multi",
+      "difficulty": "hard"
+    },
+    {
+      "id": 46,
+      "question": "What combined compliance obligations apply when a company uses an AI hiring tool affecting both NYC residents and EU data subjects?",
+      "ground_truth_answer": "A company using an AI hiring tool that affects NYC residents and EU data subjects must simultaneously comply with multiple frameworks. Under NYC Local Law 144: conduct an independent bias audit annually; post results publicly; provide 10-business-day advance notice to NYC-resident candidates; offer an alternative selection process. Under the EU AI Act: employment and recruitment AI systems are listed in Annex III as high-risk, requiring a risk management system (Article 9), technical documentation (Article 11), data governance for training data (Article 10), human oversight measures (Article 14), and a conformity assessment before deployment (Article 43). The EU also requires registration in the EU database (Article 49). Both frameworks require bias/impact assessment but differ significantly in methodology, independence requirements, and scope.",
+      "expected_citations": [
+        "Article 9",
+        "Article 11",
+        "Article 43",
+        "§ 20-871"
+      ],
+      "jurisdiction": "multi",
+      "difficulty": "hard"
+    },
+    {
+      "id": 47,
+      "question": "How do pre-use transparency requirements for AI systems compare across the EU AI Act, NYC Local Law 144, and Colorado AI Act?",
+      "ground_truth_answer": "All three frameworks require some form of pre-use or at-use disclosure but differ in scope and addressee. NYC Local Law 144 § 20-871 requires employers to notify candidates at least 10 business days before using an AEDT, informing them about the tool and their right to an alternative process. Colorado AI Act § 6-1-1706 requires deployers to notify consumers before or at the time a high-risk AI makes a consequential decision, including the system's type and role. EU AI Act Article 50 requires that persons interacting directly with an AI system be informed they are interacting with AI (unless obvious), and that AI-generated content be labelled. Article 13 requires deployers to receive detailed technical information from providers. The EU framework is broader, covering all AI-human interactions; NYC and Colorado are narrower, focused on employment or consequential decisions.",
+      "expected_citations": [
+        "Article 50",
+        "Article 13",
+        "§ 20-871",
+        "§ 6-1-1706"
+      ],
+      "jurisdiction": "multi",
+      "difficulty": "medium"
+    },
+    {
+      "id": 48,
+      "question": "Which of the four frameworks — EU AI Act, NYC Local Law 144, Colorado AI Act, NIST AI RMF — is legally binding and what are the enforcement mechanisms for each?",
+      "ground_truth_answer": "The EU AI Act is a legally binding EU Regulation directly applicable in all member states; enforced by national market surveillance authorities with penalties up to EUR 35 million or 7% of global annual turnover. NYC Local Law 144 is a legally binding New York City local law enforced by the NYC Department of Consumer and Worker Protection (DCWP) with civil penalties of $500-$1,500 per day per violation. The Colorado AI Act is a legally binding state law enforced by the Colorado Attorney General with civil penalty authority. The NIST AI Risk Management Framework is entirely voluntary guidance with no enforcement mechanism; however, it may be incorporated by reference into contracts or other regulations making it indirectly binding in specific contexts.",
+      "expected_citations": [
+        "Article 99"
+      ],
+      "jurisdiction": "multi",
+      "difficulty": "medium"
+    },
+    {
+      "id": 49,
+      "question": "Compare the independence, frequency, and scope requirements for bias audits and impact assessments across NYC Local Law 144, Colorado AI Act, and EU AI Act.",
+      "ground_truth_answer": "NYC Local Law 144 requires audits by an independent third party (no employment or financial relationship with the employer or vendor), conducted no more than one year before each use, scoped to employment decisions for NYC residents and limited to race/ethnicity and sex categories. The Colorado AI Act requires impact assessments at least annually or after material system changes; they need not be conducted by an independent third party but must be documented and made available to the AG on request; scope covers all high-risk AI consequential decisions across a wide range of protected characteristics. The EU AI Act conformity assessment under Article 43 is typically conducted internally by the provider (except for Annex III biometric systems requiring notified-body involvement); must be completed before market placement and after substantial modifications; covers all Chapter III requirements including risk management, data governance, accuracy, and cybersecurity — not only bias.",
+      "expected_citations": [
+        "Article 43",
+        "§ 20-871",
+        "§ 6-1-1705"
+      ],
+      "jurisdiction": "multi",
+      "difficulty": "hard"
+    },
+    {
+      "id": 50,
+      "question": "How do developer and deployer obligations differ between the EU AI Act and the Colorado AI Act?",
+      "ground_truth_answer": "The EU AI Act places the majority of obligations on the provider (developer): establishing the risk management system, preparing technical documentation, conducting the conformity assessment, affixing CE marking, and registering the system. Deployers under the EU AI Act must use the system as intended, monitor its operation, inform employees about AI use, and report serious incidents — lighter obligations overall. The Colorado AI Act takes a more balanced approach: developers must disclose to deployers that a system is high-risk, provide documentation and known risk information, and notify deployers of material updates; deployers must independently implement a risk management programme, conduct annual impact assessments, notify consumers, and respond to appeals — deployer obligations are more substantial than in the EU framework. Both laws allow deployers to become developers if they substantially modify a system.",
+      "expected_citations": [
+        "Article 25",
+        "§ 6-1-1703",
+        "§ 6-1-1704"
+      ],
+      "jurisdiction": "multi",
+      "difficulty": "hard"
+    },
+    {
+      "id": 51,
+      "question": "Under what circumstances would an AI system simultaneously be subject to requirements under all four frameworks: EU AI Act, NYC Local Law 144, Colorado AI Act, and NIST AI RMF?",
+      "ground_truth_answer": "An AI system would be simultaneously subject to all four frameworks if: (1) it is placed on the EU market or used to affect EU persons — triggering EU AI Act obligations for the provider/deployer; (2) it is used to make employment decisions affecting candidates or employees residing in New York City — triggering NYC Local Law 144 bias audit and notice requirements; (3) it is used to make consequential decisions affecting Colorado consumers — triggering Colorado AI Act developer/deployer obligations (effective February 2026); and (4) the organisation voluntarily adopts NIST AI RMF as its internal AI risk governance standard, or is contractually or regulatorily required to follow it. This scenario is realistic for large multinational enterprises with global hiring pipelines or financial services AI tools affecting consumers across jurisdictions. The systems' obligations do not replace one another — all must be satisfied concurrently.",
+      "expected_citations": [
+        "Article 6",
+        "§ 20-871",
+        "§ 6-1-1703"
+      ],
+      "jurisdiction": "multi",
+      "difficulty": "hard"
+    },
+    {
+      "id": 52,
+      "question": "What are all the obligations a deployer must satisfy under both the EU AI Act and the Colorado AI Act when deploying a high-risk AI system that makes consequential decisions about consumers?",
+      "ground_truth_answer": "Under the EU AI Act, deployers of high-risk AI systems must: use the system in accordance with the instructions for use (Article 13); assign human oversight to competent natural persons (Article 14); monitor the system's operation and report serious incidents to the provider and market surveillance authorities (Article 73); inform employees and their representatives when AI is used in the workplace (Article 26); conduct a fundamental rights impact assessment for certain high-risk systems (Article 27); and register as a deployer where required (Article 49). Under the Colorado AI Act, deployers must: implement a risk management program to protect consumers from algorithmic discrimination (§ 6-1-1703); complete an impact assessment at least annually (§ 6-1-1705); notify consumers before or at the time a high-risk AI makes a consequential decision (§ 6-1-1706); provide consumers a meaningful opportunity to correct inaccurate personal data and appeal adverse decisions (§ 6-1-1706); and notify the developer if they discover undisclosed risks (§ 6-1-1703). Both frameworks allow deployers to become developers if they substantially modify the system.",
+      "expected_citations": [
+        "Article 13",
+        "Article 14",
+        "Article 26",
+        "Article 27",
+        "Article 49",
+        "Article 73",
+        "§ 6-1-1703",
+        "§ 6-1-1705",
+        "§ 6-1-1706"
+      ],
+      "jurisdiction": "multi",
+      "difficulty": "hard"
+    },
+    {
+      "id": 53,
+      "question": "What are all the transparency and disclosure obligations imposed on providers and deployers across the EU AI Act, NYC Local Law 144, and Colorado AI Act?",
+      "ground_truth_answer": "The EU AI Act imposes transparency obligations at multiple levels: providers must make instructions for use available to deployers (Article 13); persons interacting with emotion recognition or biometric categorisation systems must be informed (Article 50); deployers using certain AI systems must inform natural persons they are subject to AI-assisted decision-making (Article 50); and GPAI model providers must publish summaries of training data (Article 53). NYC Local Law 144 requires employers to notify candidates and employees at least 10 business days before using an AEDT (§ 20-871), post the bias audit results and EEO policy on their website. The Colorado AI Act requires deployers to notify consumers before or at the time a high-risk AI system makes or substantially assists a consequential decision (§ 6-1-1706); and developers must disclose to deployers that a system is high-risk and provide documentation of known risks (§ 6-1-1704).",
+      "expected_citations": [
+        "Article 13",
+        "Article 50",
+        "Article 53",
+        "§ 20-871",
+        "§ 6-1-1704",
+        "§ 6-1-1706"
+      ],
+      "jurisdiction": "multi",
+      "difficulty": "hard"
+    }
+  ]
+}

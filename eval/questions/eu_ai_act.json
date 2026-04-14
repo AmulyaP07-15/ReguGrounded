@@ -1,0 +1,180 @@
+{
+  "jurisdiction": "EU",
+  "label": "EU AI Act",
+  "count": 16,
+  "questions": [
+    {
+      "id": 1,
+      "question": "What is the difference between a 'provider' and a 'deployer' under the EU AI Act?",
+      "ground_truth_answer": "Under Article 3 of the EU AI Act, a 'provider' is a natural or legal person that develops an AI system or general-purpose AI model and places it on the market or puts it into service under their own name or trademark. A 'deployer' is a natural or legal person that uses an AI system under their own authority for professional purposes. The distinction matters because providers bear the primary compliance obligations (risk management, technical documentation, conformity assessment), while deployers must use systems as intended, monitor performance, and report serious incidents.",
+      "expected_citations": [
+        "Article 3"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "easy"
+    },
+    {
+      "id": 2,
+      "question": "Under what specific conditions does the EU AI Act permit real-time remote biometric identification in publicly accessible spaces?",
+      "ground_truth_answer": "Article 5 of the EU AI Act generally prohibits real-time remote biometric identification in publicly accessible spaces for law enforcement, but permits it as a narrow exception in three situations: targeted searches for specific victims of abduction, trafficking or sexual exploitation; prevention of a specific, substantial and imminent threat to life or a terrorist attack; and identification of persons suspected of serious crimes listed in the regulation. Each use must be authorized in advance by a judicial or other independent administrative authority, except in urgency cases.",
+      "expected_citations": [
+        "Article 5"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "medium"
+    },
+    {
+      "id": 3,
+      "question": "What training compute threshold triggers 'systemic risk' classification for a general-purpose AI model under the EU AI Act?",
+      "ground_truth_answer": "Article 51 of the EU AI Act establishes that a general-purpose AI model is presumed to have systemic risk when the cumulative amount of compute used for training exceeds 10^25 floating point operations (FLOPs). The Commission may also designate models as having systemic risk based on other criteria including number of users, degree of autonomy, or capabilities relevant to cybersecurity or CBRN threats. Models with systemic risk face additional obligations including adversarial testing and incident reporting.",
+      "expected_citations": [
+        "Article 51"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "medium"
+    },
+    {
+      "id": 4,
+      "question": "When does a deployer become a provider under the EU AI Act and what obligations does that trigger?",
+      "ground_truth_answer": "Under Article 25 of the EU AI Act, a deployer is considered a provider and must comply with all provider obligations if they: place a high-risk AI system on the market or into service under their own name or trademark; make a substantial modification to a high-risk AI system; or change the intended purpose of any AI system — including a general-purpose AI model — in a way that makes it high-risk. Once reclassified as a provider, the entity must establish a risk management system, prepare technical documentation, conduct a conformity assessment, and register the system.",
+      "expected_citations": [
+        "Article 25"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "hard"
+    },
+    {
+      "id": 5,
+      "question": "What specific human oversight measures must providers build into high-risk AI systems under Article 14?",
+      "ground_truth_answer": "Article 14 of the EU AI Act requires providers to design high-risk AI systems so that natural persons can effectively oversee them. The system must allow persons to understand its capabilities and limitations, interpret its outputs correctly, decide not to use or override the system, intervene or interrupt it via a stop button, and monitor its operation. The technical measures enabling oversight must be appropriate to the risks, including tools that help persons detect anomalies and biases. The system must not override or impede human oversight.",
+      "expected_citations": [
+        "Article 14"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "medium"
+    },
+    {
+      "id": 6,
+      "question": "What information must providers include in the instructions for use that accompany a high-risk AI system?",
+      "ground_truth_answer": "Article 13 of the EU AI Act requires instructions for use to include: the identity and contact details of the provider; the system's capabilities, limitations, and intended purpose; the level of accuracy and robustness and any known limitations affecting performance; any known circumstances that may lead to risks or unexpected behaviour; technical measures for human oversight including stop procedures; the expected lifetime and maintenance requirements; and where applicable, the characteristics of input data. This information must enable deployers to properly use and oversee the system.",
+      "expected_citations": [
+        "Article 13"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "easy"
+    },
+    {
+      "id": 7,
+      "question": "What are the notification timelines for reporting serious incidents involving high-risk AI systems under the EU AI Act?",
+      "ground_truth_answer": "Article 73 of the EU AI Act requires providers of high-risk AI systems placed on the EU market to report serious incidents to the national market surveillance authority of the member state where the incident occurred. The reporting must happen immediately and no later than 15 days after the provider becomes aware of the incident. If the incident results in death or serious harm, the report must be made within 2 working days of becoming aware. Providers must also report any malfunctioning that could constitute a breach of fundamental rights.",
+      "expected_citations": [
+        "Article 73"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "medium"
+    },
+    {
+      "id": 8,
+      "question": "What data governance requirements apply to training, validation, and testing datasets for high-risk AI systems under the EU AI Act?",
+      "ground_truth_answer": "Article 10 of the EU AI Act requires that training, validation, and testing data for high-risk AI systems be subject to appropriate data governance practices. Data must be relevant, sufficiently representative, and to the best extent possible free of errors and complete. Data collection must consider the intended geographical, behavioural, or functional setting of use. Providers must examine data for possible biases and implement data governance measures to detect and address them. Where personal data is used, it must comply with applicable data protection law.",
+      "expected_citations": [
+        "Article 10"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "hard"
+    },
+    {
+      "id": 9,
+      "question": "What are the penalties for placing a prohibited AI system on the market under the EU AI Act?",
+      "ground_truth_answer": "Article 99 of the EU AI Act establishes a tiered penalty system. Non-compliance with the prohibited AI practices listed in Article 5 can result in administrative fines of up to EUR 35,000,000 or, if the offender is a company, up to 7% of its total worldwide annual turnover for the preceding financial year, whichever is higher. Non-compliance with other requirements for providers or deployers can result in fines up to EUR 15,000,000 or 3% of turnover. Supplying incorrect, incomplete, or misleading information to authorities can result in fines up to EUR 7,500,000 or 1.5% of turnover.",
+      "expected_citations": [
+        "Article 99",
+        "Article 5"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "medium"
+    },
+    {
+      "id": 10,
+      "question": "What is the EU AI Act's definition of 'substantial modification' and why is it significant?",
+      "ground_truth_answer": "Article 3(23) of the EU AI Act defines a 'substantial modification' as a change to the AI system after it has been placed on the market or put into service that affects the system's compliance with the requirements of the regulation or results in a modification of the intended purpose for which the system was assessed. It is significant because it can trigger re-classification: a deployer who makes a substantial modification to a high-risk AI system becomes a provider and must fulfil all associated obligations including a new conformity assessment.",
+      "expected_citations": [
+        "Article 3"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "hard"
+    },
+    {
+      "id": 11,
+      "question": "How does the EU AI Act classify AI systems listed in Annex III, and what criteria can remove them from the high-risk category?",
+      "ground_truth_answer": "Article 6 of the EU AI Act establishes that AI systems listed in Annex III are classified as high-risk. However, Article 6(3) provides that a system listed in Annex III is not high-risk if it does not pose a significant risk of harm to the health, safety, or fundamental rights of natural persons — specifically where the system performs a narrow procedural task, improves human activity without replacing human assessment, detects decision-making patterns for human review only, or performs preparatory tasks to a human assessment. Providers must document their reasoning.",
+      "expected_citations": [
+        "Article 6"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "hard"
+    },
+    {
+      "id": 12,
+      "question": "What transparency obligations does the EU AI Act impose on providers of AI systems that generate synthetic content?",
+      "ground_truth_answer": "Article 50 of the EU AI Act requires providers of AI systems that generate or manipulate content — including images, audio, video, or text — to ensure outputs are marked in a machine-readable format and detectable as artificially generated. For deep fakes (realistic-looking images, video, or audio of real persons), persons must be informed that the content has been artificially generated or manipulated. The obligation to disclose can be limited where the content is clearly artistic, creative, or satirical, provided it does not interfere with the public interest.",
+      "expected_citations": [
+        "Article 50"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "medium"
+    },
+    {
+      "id": 13,
+      "question": "What quality management system requirements does the EU AI Act impose on providers of high-risk AI systems?",
+      "ground_truth_answer": "Article 17 of the EU AI Act requires providers of high-risk AI systems to put in place a quality management system documented in a systematic and orderly manner. The quality management system must cover: strategy for regulatory compliance; design, development, and quality control procedures; systematic actions for examining, testing, and validating the system; responsibilities and authorities of management; resource management; post-market monitoring; and incident reporting procedures. SMEs may implement these requirements in a simplified manner proportionate to their size.",
+      "expected_citations": [
+        "Article 17"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "medium"
+    },
+    {
+      "id": 14,
+      "question": "What are the obligations of importers of high-risk AI systems under the EU AI Act before placing them on the EU market?",
+      "ground_truth_answer": "Article 23 of the EU AI Act requires importers to verify before placing a high-risk AI system on the EU market that: the provider has carried out the appropriate conformity assessment; the provider has drawn up the technical documentation; the system bears the required CE marking; the provider has appointed an EU representative; and the system is accompanied by the required instructions for use. Importers must not place on the market any system they have reason to believe does not comply, and must keep a copy of the conformity declaration for ten years.",
+      "expected_citations": [
+        "Article 23"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "medium"
+    },
+    {
+      "id": 15,
+      "question": "What are the EU AI Act's registration requirements for high-risk AI systems before they can be placed on the market?",
+      "ground_truth_answer": "Article 49 of the EU AI Act requires providers of high-risk AI systems to register themselves and their systems in a publicly accessible EU database maintained by the European Commission before placing the system on the market. The registration must include: provider identity; system name, version, and purpose; conformity assessment body (if applicable); member states where the system is intended for use; and a summary of the conformity assessment. Some high-risk systems used exclusively for national security, military, or law enforcement purposes are exempt from public registration.",
+      "expected_citations": [
+        "Article 49"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "medium"
+    },
+    {
+      "id": 16,
+      "question": "Enumerate all the provider obligations that apply specifically to high-risk AI systems under the EU AI Act from pre-market development through to post-market surveillance.",
+      "ground_truth_answer": "Providers of high-risk AI systems under the EU AI Act must satisfy obligations across the entire lifecycle. Pre-market: establish a risk management system (Article 9); implement data governance and management practices for training, validation and testing data (Article 10); draw up technical documentation (Article 11); keep logs automatically generated by the system (Article 12); provide instructions for use (Article 13); design the system to allow effective human oversight (Article 14); achieve appropriate levels of accuracy, robustness and cybersecurity (Article 15); establish a quality management system (Article 17); apply a conformity assessment procedure (Article 43); affix CE marking (Article 48); and register the system in the EU database (Article 49). Post-market: report serious incidents and malfunctioning to market surveillance authorities (Article 73); conduct post-market monitoring (Article 72); and cooperate with national competent authorities on request.",
+      "expected_citations": [
+        "Article 9",
+        "Article 10",
+        "Article 11",
+        "Article 12",
+        "Article 13",
+        "Article 14",
+        "Article 15",
+        "Article 17",
+        "Article 43",
+        "Article 48",
+        "Article 49",
+        "Article 72",
+        "Article 73"
+      ],
+      "jurisdiction": "EU",
+      "difficulty": "hard"
+    }
+  ]
+}

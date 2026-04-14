@@ -3,13 +3,13 @@
 import os
 from typing import Dict, List
 
-from openai import OpenAI
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 from utils.logger import setup_logger, log_function_call, log_errors
 from utils.rate_limiter import rate_limiter
+from utils.llm_client import get_llm_client
 
 load_dotenv(Path(__file__).parent / ".env")
 
@@ -20,10 +20,7 @@ class AnswerSynthesizer:
     """Uses an LLM to generate a grounded answer with inline citations from retrieved evidence."""
 
     def __init__(self, model: str = "gemini-2.0-flash"):
-        self.client = OpenAI(
-            api_key=os.getenv("GEMINI_API_KEY"),
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        )
+        self.client = get_llm_client()
         self.model = model
 
     @log_function_call(logger)
@@ -32,11 +29,18 @@ class AnswerSynthesizer:
         original_query: str,
         decomposition: Dict,
         evidence_bundle: List[Dict],
+        invalid_citations: List[str] = None,
     ) -> Dict:
         """
         Generate a natural-language answer with inline citations.
 
-        Returns dict with keys: question, sub_questions, answer, citations.
+        Args:
+            invalid_citations: On retry, pass citations from the previous attempt
+                               that were not found in retrieved chunks. The LLM
+                               is instructed not to use them in the new answer.
+
+        Returns dict with keys: question, sub_questions, answer, citations,
+                                all_chunks, llm_synthesis_failed.
         """
         all_chunks = []
         for bundle in evidence_bundle:
@@ -44,16 +48,19 @@ class AnswerSynthesizer:
 
         citations = self._build_citations(all_chunks)
         logger.info(f"Built {len(citations)} citations from {len(all_chunks)} chunks")
-        answer = self._llm_synthesize(original_query, evidence_bundle, citations)
+        answer, llm_failed = self._llm_synthesize(
+            original_query, evidence_bundle, citations, invalid_citations
+        )
 
         sub_questions = [item["sub_question"] for item in decomposition["sub_questions"]]
 
         return {
-            "question": original_query,
-            "sub_questions": sub_questions,
-            "answer": answer,
-            "citations": citations,
-            "all_chunks": all_chunks,  # passed through for validator; stripped in query_interface
+            "question":            original_query,
+            "sub_questions":       sub_questions,
+            "answer":              answer,
+            "citations":           citations,
+            "all_chunks":          all_chunks,  # passed through for validator; stripped in query_interface
+            "llm_synthesis_failed": llm_failed,
         }
 
     # ------------------------------------------------------------------
@@ -106,10 +113,27 @@ class AnswerSynthesizer:
         original_query: str,
         evidence_bundle: List[Dict],
         citations: List[Dict],
-    ) -> str:
-        """Call the LLM to write the final answer grounded in retrieved evidence."""
+        invalid_citations: List[str] = None,
+    ) -> tuple:
+        """
+        Call the LLM to write the final answer grounded in retrieved evidence.
+
+        Returns (answer: str, llm_failed: bool).
+        llm_failed=True means the LLM was unavailable and a deterministic
+        fallback was used — metrics from fallback answers are not meaningful.
+        """
         evidence_text = self._format_evidence_for_prompt(evidence_bundle)
         citation_refs = self._format_citation_refs(citations)
+
+        # On corrective retry, explicitly forbid previously-invalid citations
+        strict_note = ""
+        if invalid_citations:
+            forbidden = "\n".join(f"  - {c}" for c in invalid_citations)
+            strict_note = (
+                f"\n\nCORRECTIVE CONSTRAINT — these citations were NOT found in the "
+                f"retrieved evidence. Do NOT use them:\n{forbidden}\n"
+                f"If you cannot answer without them, say so rather than inventing citations."
+            )
 
         prompt = f"""You are a regulatory compliance expert. Answer the user's question using ONLY the provided regulatory evidence below.
 
@@ -122,7 +146,7 @@ Rules:
 - Only use citations from the Available Citations list below. Do not invent citations.
 - If multiple jurisdictions apply, address each one in turn.
 - Be concise and precise. If the evidence is insufficient, say so clearly.
-
+{strict_note}
 Examples of correct inline citation style:
   "NYC Local Law 144 § 20-871 requires employers to conduct a bias audit no more than one year prior to use."
   "EU AI Act Article 9 mandates a risk management system throughout the AI lifecycle."
@@ -146,10 +170,10 @@ Answer:"""
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
             )
-            return response.choices[0].message.content.strip()
+            return response.choices[0].message.content.strip(), False
         except Exception as e:
             logger.error(f"LLM synthesis failed: {e}")
-            return self._fallback_answer(original_query, evidence_bundle, citations)
+            return self._fallback_answer(original_query, evidence_bundle, citations), True
 
     def _format_evidence_for_prompt(self, evidence_bundle: List[Dict]) -> str:
         lines = []

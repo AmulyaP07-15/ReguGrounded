@@ -17,12 +17,10 @@ Usage:
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
@@ -30,20 +28,13 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from query_interface import process_query  # noqa: E402
+from utils.llm_client import get_llm_client  # noqa: E402
 
 GROUND_TRUTH_PATH = Path(__file__).parent / "ground_truth.json"
 
-_client: OpenAI | None = None
 
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        _client = OpenAI(
-            api_key=os.getenv("GEMINI_API_KEY"),
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        )
-    return _client
+def _get_client():
+    return get_llm_client()
 
 
 _JUDGE_PROMPT = """\

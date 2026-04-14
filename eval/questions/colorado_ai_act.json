@@ -1,0 +1,108 @@
+{
+  "jurisdiction": "Colorado",
+  "label": "Colorado AI Act",
+  "count": 10,
+  "questions": [
+    {
+      "id": 27,
+      "question": "What is the definition of a 'consequential decision' under the Colorado AI Act?",
+      "ground_truth_answer": "Under Colorado AI Act § 6-1-1701, a consequential decision means a decision that has a legal or similarly significant effect on a consumer's access to or the cost, terms, or availability of: education enrollment or education opportunities; employment or employment opportunities; financial or lending services; essential utilities; family planning services; healthcare or health insurance; housing or insurance; and legal services. The term captures decisions that materially affect a consumer's life opportunities, not merely commercial transactions.",
+      "expected_citations": [
+        "§ 6-1-1701"
+      ],
+      "jurisdiction": "Colorado",
+      "difficulty": "easy"
+    },
+    {
+      "id": 28,
+      "question": "What risk management obligations does the Colorado AI Act impose on deployers of high-risk AI systems?",
+      "ground_truth_answer": "Colorado AI Act § 6-1-1703 requires deployers of high-risk AI systems to: implement a risk management program using reasonable care to protect consumers from known risks of algorithmic discrimination; complete and document an impact assessment at least annually and whenever the system is modified in a material way; provide consumers with notice when the system makes or substantially assists in a consequential decision; offer consumers a meaningful opportunity to correct inaccurate personal data and appeal adverse decisions; and comply with consumer data rights requests. They must also notify the developer if they identify risks not disclosed by the developer.",
+      "expected_citations": [
+        "§ 6-1-1703"
+      ],
+      "jurisdiction": "Colorado",
+      "difficulty": "medium"
+    },
+    {
+      "id": 29,
+      "question": "What must Colorado AI Act developer disclosures to deployers include?",
+      "ground_truth_answer": "Under Colorado AI Act § 6-1-1704, developers of high-risk AI systems must disclose to deployers: a statement that the system is a high-risk AI system; the intended uses of the system; documentation of the system's known limitations and the risk of algorithmic discrimination; the type of data processed by the system; information about evaluations and assessments of the system; instructions for use; and documentation of metrics used to evaluate the system's performance. These disclosures must be provided at the time of sale or licensing and updated when a developer identifies material changes to the risk profile.",
+      "expected_citations": [
+        "§ 6-1-1704"
+      ],
+      "jurisdiction": "Colorado",
+      "difficulty": "medium"
+    },
+    {
+      "id": 30,
+      "question": "What constitutes 'algorithmic discrimination' under the Colorado AI Act?",
+      "ground_truth_answer": "Colorado AI Act § 6-1-1701 defines algorithmic discrimination as any condition in which the use of an artificial intelligence system results in unlawful differential treatment or impact on individuals or groups based on their actual or perceived protected characteristics including age, color, disability, ethnicity, genetic information, limited English proficiency, national origin, pregnancy, race, religion, sex, veteran status, or other legally protected classification. The term covers both disparate treatment (intentional) and disparate impact (unintentional but measurable differential outcomes).",
+      "expected_citations": [
+        "§ 6-1-1701"
+      ],
+      "jurisdiction": "Colorado",
+      "difficulty": "medium"
+    },
+    {
+      "id": 31,
+      "question": "What must a Colorado AI Act impact assessment include?",
+      "ground_truth_answer": "Colorado AI Act § 6-1-1705 requires impact assessments to include: a statement of the purpose and intended use cases of the high-risk AI system; a description of the benefits of the system; a summary of the types of data used by the system; a description of the outputs produced; documented metrics used to evaluate the system; a description of transparency measures taken; known limitations and potential risks; the steps taken by the deployer to mitigate known or reasonably foreseeable risks of algorithmic discrimination; and post-deployment monitoring and user safeguard plans.",
+      "expected_citations": [
+        "§ 6-1-1705"
+      ],
+      "jurisdiction": "Colorado",
+      "difficulty": "medium"
+    },
+    {
+      "id": 32,
+      "question": "When must a Colorado AI Act deployer notify consumers about AI decision-making?",
+      "ground_truth_answer": "Colorado AI Act § 6-1-1706 requires deployers to notify consumers before or at the time a high-risk AI system is used to make, or substantially assist in making, a consequential decision about them. The notice must state: that a high-risk AI system was used; the nature of the consequential decision; the type of AI system and its role; the personal data processed; and the consumer's rights including the right to appeal or request human review. Notification cannot be buried in general terms and conditions but must be reasonably accessible.",
+      "expected_citations": [
+        "§ 6-1-1706"
+      ],
+      "jurisdiction": "Colorado",
+      "difficulty": "medium"
+    },
+    {
+      "id": 33,
+      "question": "What are the consumer rights regarding adverse AI-assisted decisions under the Colorado AI Act?",
+      "ground_truth_answer": "Colorado AI Act § 6-1-1706 grants consumers the right to: receive a notice explaining that an AI system was used and the type of system; request disclosure of the personal data processed and the reason for the decision; appeal or seek human review of any adverse consequential decision made by or substantially assisted by a high-risk AI system; and correct any inaccurate personal data that was used in the decision. Deployers must provide a process for appeal and cannot penalise consumers for exercising these rights. The appeal right must result in a meaningful review, not just a reiteration of the AI's output.",
+      "expected_citations": [
+        "§ 6-1-1706"
+      ],
+      "jurisdiction": "Colorado",
+      "difficulty": "medium"
+    },
+    {
+      "id": 34,
+      "question": "When does the Colorado AI Act take effect and are there any phase-in provisions?",
+      "ground_truth_answer": "The Colorado AI Act (SB 24-205) was signed into law on May 17, 2024 and takes effect on February 1, 2026. There are no formal phased compliance deadlines — developers and deployers are expected to be in full compliance by the effective date. The interval between signing and effectiveness is designed to give industry time to prepare compliance programmes, conduct impact assessments, and update documentation. Colorado's Attorney General is responsible for promulgating rules to further clarify requirements before the effective date.",
+      "expected_citations": [
+        "§ 6-1-1701"
+      ],
+      "jurisdiction": "Colorado",
+      "difficulty": "easy"
+    },
+    {
+      "id": 35,
+      "question": "Under what circumstances does a Colorado AI Act deployer take on developer obligations?",
+      "ground_truth_answer": "Colorado AI Act § 6-1-1704 provides that when a deployer modifies a high-risk AI system in a manner that was not intended or authorised by the developer, or uses the system for a purpose that is not an intended use disclosed by the developer, the deployer is treated as a developer for that modification or use. As a result, the deployer inherits developer obligations: providing disclosures to downstream deployers, maintaining documentation, conducting assessments of the modified system, and being responsible for risks introduced by the modification.",
+      "expected_citations": [
+        "§ 6-1-1704"
+      ],
+      "jurisdiction": "Colorado",
+      "difficulty": "hard"
+    },
+    {
+      "id": 36,
+      "question": "What do developers and deployers under the Colorado AI Act need to maintain in terms of records?",
+      "ground_truth_answer": "Colorado AI Act § 6-1-1704 and § 6-1-1705 require developers to maintain records of: disclosures provided to deployers; evaluations conducted on the system; known risks identified; and system documentation including training data characteristics and intended uses. Deployers must maintain records of: impact assessments; consumer notices provided; consumer appeals received and how they were resolved; and risk management programme documentation. These records must be retained for a reasonable period and made available to the Colorado Attorney General upon request.",
+      "expected_citations": [
+        "§ 6-1-1704",
+        "§ 6-1-1705"
+      ],
+      "jurisdiction": "Colorado",
+      "difficulty": "hard"
+    }
+  ]
+}

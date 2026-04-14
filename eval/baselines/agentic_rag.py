@@ -33,7 +33,6 @@ load_dotenv(ROOT / ".env")
 from rlm_engine             import RLMEngine              # noqa: E402
 from reasoning_orchestrator import ReasoningOrchestrator  # noqa: E402
 from answer_synthesizer     import AnswerSynthesizer      # noqa: E402
-from citation_validator     import validate_citations     # noqa: E402
 from src.retriever          import Retriever              # noqa: E402
 
 _retriever_instance = None
@@ -85,31 +84,26 @@ def process_query(question: str, top_k: int = 5) -> dict:
     )
 
     all_chunks = orchestrator.get_all_chunks(evidence_bundle)
-
-    # Validate citations post-hoc for fair comparison.
-    # A-RAG does not include validation as a system component — this is
-    # applied externally so hallucination_rate is comparable across all systems.
-    # Chunks from the orchestrator are already normalized to flat format.
-    validation = validate_citations(synthesis["answer"], all_chunks)
-    validation["note"] = (
-        "Post-hoc validation for comparison. "
-        "A-RAG does not include validation as a system component."
-    )
+    # Chunks are already normalized to flat format by the orchestrator.
+    # Validation is intentionally absent from A-RAG — it is applied post-hoc
+    # by the eval script so that the three systems remain genuinely distinct.
 
     latency_ms = int((time.time() - t0) * 1000)
 
     return {
-        "question":      question,
-        "sub_questions": synthesis["sub_questions"],
-        "answer":        synthesis["answer"],
-        "citations":     synthesis["citations"],
-        "validation":    validation,
+        "question":          question,
+        "sub_questions":     synthesis["sub_questions"],
+        "answer":            synthesis["answer"],
+        "citations":         synthesis["citations"],
+        "validation":        None,   # filled in post-hoc by eval/compare_models.py
+        "retrieved_chunks":  all_chunks,  # exposed for eval script post-hoc validation
         "metadata": {
             "jurisdictions_searched":  jurisdictions,
             "total_chunks_retrieved":  len(all_chunks),
             "latency_ms":              latency_ms,
             "baseline":                "agentic_rag",
             "has_built_in_validation": False,
-            "validation_method":       "post_hoc_for_comparison",
+            "validation_method":       "none",
+            "llm_synthesis_failed":    synthesis.get("llm_synthesis_failed", False),
         },
     }

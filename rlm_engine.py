@@ -4,7 +4,6 @@ import json
 import os
 from typing import List, Dict
 
-from openai import OpenAI
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -12,6 +11,7 @@ from dotenv import load_dotenv
 from utils.logger import setup_logger, log_function_call
 from utils.cache import ComponentCache
 from utils.rate_limiter import rate_limiter
+from utils.llm_client import get_llm_client
 
 load_dotenv(Path(__file__).parent / ".env")
 
@@ -56,10 +56,7 @@ class RLMEngine:
             "NIST AI Risk Management Framework",
             "NIST AI RMF",
         ]
-        self.client = OpenAI(
-            api_key=os.getenv("GEMINI_API_KEY"),
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        )
+        self.client = get_llm_client()
         self.model = model
 
     @log_function_call(logger)

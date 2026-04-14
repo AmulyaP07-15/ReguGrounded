@@ -15,8 +15,8 @@ from typing import Optional
 
 from pathlib import Path
 
-from openai import OpenAI
 from dotenv import load_dotenv
+from utils.llm_client import get_llm_client
 
 from utils.rate_limiter import rate_limiter
 
@@ -153,10 +153,7 @@ class QueryClarifier:
     """
 
     def __init__(self, model: str = "gemini-2.0-flash"):
-        self.client = OpenAI(
-            api_key=os.getenv("GEMINI_API_KEY"),
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        )
+        self.client = get_llm_client()
         self.model  = model
 
     # ------------------------------------------------------------------
