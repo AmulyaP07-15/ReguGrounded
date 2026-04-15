@@ -2,7 +2,7 @@
 
 A multi-stage RAG pipeline for regulatory compliance Q&A, grounded in retrieved evidence with built-in citation validation and a corrective retry loop.
 
-The project benchmarks three systems - Standard RAG, Agentic RAG (ARAG), and Corrective Agentic Generation (CAG) - across 53 curated questions spanning EU AI Act, NYC Local Law 144, Colorado AI Act, NIST AI RMF, and cross-jurisdictional scenarios.
+The project benchmarks three systems - Standard RAG, Agentic RAG (ARAG), and Cached Agentic Generation (CAG) - across 53 curated questions spanning EU AI Act, NYC Local Law 144, Colorado AI Act, NIST AI RMF, and cross-jurisdictional scenarios.
 
 ---
 
@@ -251,7 +251,7 @@ The benchmark (`eval/compare_models.py`) measures three systems across:
 
 **Prisha Srivastava** designed and implemented the reasoning layer, including the RLM query decomposition engine (`rlm_engine.py`), reasoning orchestrator (`reasoning_orchestrator.py`), answer synthesizer (`answer_synthesizer.py`), and query interface (`query_interface.py`). Prisha also designed and implemented the evaluation framework, including the citation, answer quality, and end-to-end evaluation scripts, and the multi-pipeline comparison across Standard RAG, Agentic RAG, and ReguGrounded.
 
-**Amulya Penikalapati** designed and implemented the data and retrieval layer, including PDF ingestion, structured chunking, embedding generation, and Pinecone indexing. Amulya also built the hybrid retrieval pipeline combining BM25 keyword search with semantic search, jurisdiction filtering, query expansion, and cross-encoder reranking, as well as the full utility layer covering caching, guardrails, logging, metrics, and rate limiting. Amulya also implemented the Corrective Augmented Generation (CAG) architecture, including the Reasoning Language Model for query decomposition, the citation validation system, and the corrective retry loop that actively detects and fixes hallucinated citations.
+**Amulya Penikalapati** designed and implemented the data and retrieval layer, including PDF ingestion, structured chunking, embedding generation, and Pinecone indexing. Amulya also built the hybrid retrieval pipeline combining BM25 keyword search with semantic search, jurisdiction filtering, query expansion, and cross-encoder reranking, as well as the full utility layer covering caching, guardrails, logging, metrics, and rate limiting. Amulya also implemented the Cached Augmented Generation (CAG) architecture, including the Reasoning Language Model for query decomposition, the citation validation system, and the corrective retry loop that actively detects and fixes hallucinated citations.
 
 ---
 
