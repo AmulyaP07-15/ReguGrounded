@@ -1,94 +1,101 @@
 # ReguGrounded
 
-## Overview
+A multi-stage RAG pipeline for regulatory compliance Q&A, grounded in retrieved evidence with built-in citation validation and a corrective retry loop.
 
-ReguGrounded is a regulatory compliance assistant that answers multi-jurisdiction AI governance questions using **grounded generation with citations**.
-
-The system combines:
-
-* **LLM reasoning**
-* **hybrid vector + keyword retrieval**
-* **structured evidence synthesis**
-
-The goal is to prevent hallucinated regulatory answers by grounding all responses in real regulatory text.
+The project benchmarks three systems — Standard RAG, Agentic RAG (ARAG), and Corrective Agentic Generation (CAG) — across 53 curated questions spanning EU AI Act, NYC Local Law 144, Colorado AI Act, NIST AI RMF, and cross-jurisdictional scenarios.
 
 ---
 
-# System Architecture
+## Architecture
+
+### Three Systems Compared
+
+| System | Query Decomposition | Validation | Corrective Retry |
+|---|---|---|---|
+| Standard RAG | No | Post-hoc only | No |
+| ARAG | Yes (RLM) | Post-hoc only | No |
+| CAG (ReguGrounded) | Yes (RLM) | Built-in | Yes |
+
+### CAG Pipeline
 
 ```
 User Query
      ↓
-Query Interface  (input guardrails, trace ID, rate limiting)
+Query Interface      — input guardrails, trace ID, rate limiting
      ↓
-Query Clarifier  (ambiguity detection)
+Query Clarifier      — optional ambiguity detection (interactive mode)
      ↓
-RLM Decomposition (LLM query decomposition into sub-questions)
+RLM Engine           — LLM decomposition into jurisdiction-specific sub-questions
      ↓
-Enhanced Retrieval (per sub-question)
-   ├── Query Expansion     (informal → statutory terminology)
-   ├── Jurisdiction Filter (auto-detect relevant regulation)
-   ├── Hybrid Search       (BM25 keyword + Pinecone semantic)
-   └── Cross-Encoder Rerank (precise 2nd-pass scoring)
+Reasoning Orchestrator — parallel retrieval across all sub-questions
+   ├── Query Expansion       (informal → statutory terminology)
+   ├── Jurisdiction Filter   (auto-detect relevant regulation)
+   ├── Hybrid Search         (BM25 keyword + Pinecone semantic)
+   └── Cross-Encoder Rerank  (precise 2nd-pass scoring)
      ↓
-Evidence Collection
+Answer Synthesizer   — LLM synthesis grounded in retrieved text only
      ↓
-Answer Synthesis   (LLM grounded in retrieved text only)
+Citation Validator   — hallucination detection: checks every cited source/article
+     ↓                 against retrieved chunk metadata
+  [if hallucination_rate > 10%]
      ↓
-Citation Validator (post-hoc hallucination detection)
+Corrective Retry     — re-synthesize with forbidden citation list injected
      ↓
 Grounded Response + Citations
 ```
 
 ---
 
-# Repository Structure
+## Repository Structure
 
 ```
-ReguGrounded/
+regugrounded/
 │
-├── test_agentic_rag.py         # End-to-end agentic RAG demo + evaluation  ← START HERE
-├── query_interface.py          # CLI entry point + programmatic API
-├── rlm_engine.py               # LLM query decomposition into sub-questions
-├── reasoning_orchestrator.py   # Parallel evidence retrieval + deduplication
-├── answer_synthesizer.py       # Grounded answer synthesis + citation formatting
-├── citation_validator.py       # Post-hoc hallucination detection
-├── query_clarifier.py          # Interactive clarification (CLI only)
+├── __init__.py                     # Package entry point
+├── query_interface.py              # CLI + programmatic API (main entry point)
+├── rlm_engine.py                   # LLM query decomposition
+├── reasoning_orchestrator.py       # Parallel retrieval orchestration
+├── answer_synthesizer.py           # Grounded answer synthesis
+├── citation_validator.py           # Hallucination detection
+├── query_clarifier.py              # Interactive clarification
 │
-├── src/                        # Data & retrieval layer (Amulya)
-│   ├── process_all_pdfs.py     # One-time ingestion pipeline
-│   ├── pdf_ingestion.py        # Extract and clean text from PDFs
-│   ├── chunker.py              # Split by article/section with metadata
-│   ├── embedder.py             # Generate embeddings + upload to Pinecone
-│   ├── retriever.py            # Base Pinecone retrieval
-│   ├── enhanced_retriever.py   # Hybrid BM25 + semantic, reranking, expansion
-│   ├── bm25_index.py           # Legal citation-aware BM25 index
-│   ├── query_expander.py       # Rule-based regulatory synonym expansion
-│   ├── reranker.py             # Cross-encoder reranking (lazy-loaded)
-│   └── retrieval_config.py     # Feature toggles for retrieval enhancements
+├── src/                            # Data & retrieval layer
+│   ├── process_all_pdfs.py         # One-time ingestion pipeline
+│   ├── pdf_ingestion.py            # PDF text extraction and cleaning
+│   ├── chunker.py                  # Split by article/section with metadata
+│   ├── embedder.py                 # Embeddings + Pinecone upload
+│   ├── retriever.py                # Base Pinecone retrieval
+│   ├── enhanced_retriever.py       # Hybrid BM25 + semantic + reranking
+│   ├── bm25_index.py               # Legal citation-aware BM25 index
+│   ├── query_expander.py           # Regulatory synonym expansion
+│   ├── reranker.py                 # Cross-encoder reranking (lazy-loaded)
+│   └── retrieval_config.py         # Feature toggles
 │
-├── utils/                      # Infrastructure
-│   ├── cache.py                # QueryCache (LRU + SQLite) + ComponentCache
-│   ├── guardrails.py           # InputGuard + OutputGuard
-│   ├── rate_limiter.py         # OpenAI token rate limiting
-│   ├── logger.py               # Structured logging + decorators
-│   ├── metrics.py              # MetricsTracker (latency, errors, cache hits)
-│   └── trace.py                # Request trace ID generation
+├── utils/                          # Infrastructure
+│   ├── llm_client.py               # Unified LLM client (Anthropic / Groq / Gemini)
+│   ├── cache.py                    # QueryCache (LRU + SQLite) + ComponentCache
+│   ├── guardrails.py               # InputGuard + OutputGuard
+│   ├── rate_limiter.py             # Token rate limiting
+│   ├── logger.py                   # Structured logging + decorators
+│   ├── metrics.py                  # Latency and accuracy tracking
+│   └── trace.py                    # Request trace ID generation
 │
-├── eval/                       # Evaluation suite
-│   ├── run_all_evals.py        # Master evaluation script
-│   ├── evaluate_retrieval.py   # Precision@5, Recall@5, MRR
-│   ├── evaluate_citations.py   # Citation precision, recall, hallucination rate
-│   ├── evaluate_answers.py     # LLM-judge answer quality (0–5 scale)
-│   ├── evaluate_e2e.py         # Success rate, latency percentiles
-│   ├── benchmark_hallucination.py  # Agentic RAG vs standard RAG comparison
-│   ├── ground_truth.json       # 18 annotated test questions
+├── eval/                           # Evaluation suite
+│   ├── compare_models.py           # Three-way benchmark (Standard RAG / ARAG / CAG)
+│   ├── evaluate_answers.py         # LLM-judge answer correctness (0–5 scale)
+│   ├── ground_truth.json           # 53 annotated questions (IDs 1–53)
+│   ├── questions/                  # Per-jurisdiction question files
+│   │   ├── eu_ai_act.json          # 16 questions (Q1–16)
+│   │   ├── nyc_local_law_144.json  # 10 questions (Q17–26)
+│   │   ├── colorado_ai_act.json    # 10 questions (Q27–36)
+│   │   ├── nist_ai_rmf.json        # 8 questions  (Q37–44)
+│   │   └── cross_jurisdictional.json # 9 questions (Q45–53)
 │   ├── baselines/
-│   │   ├── standard_rag.py     # Baseline: basic RAG without guardrails
-│   │   └── agentic_rag.py      # Baseline: full ReguGrounded pipeline
-│   └── results/                # Timestamped JSON eval reports
+│   │   ├── standard_rag.py         # Baseline: single retrieve → LLM, no decomposition
+│   │   └── agentic_rag.py          # Baseline: RLM decomposition, no corrective loop
+│   └── results/                    # Timestamped JSON benchmark reports
 │
-├── tests/                      # 154-test offline suite
+├── tests/                          # 154-test offline suite (all passing)
 │   ├── test_cache.py
 │   ├── test_guardrails.py
 │   ├── test_integration.py
@@ -96,247 +103,107 @@ ReguGrounded/
 │   └── test_retrieval_improvements.py
 │
 ├── data/
-│   ├── raw/                    # Source PDFs (not committed)
-│   ├── processed/              # Cleaned text per document
-│   └── chunks/                 # Structured JSON chunks with metadata
+│   ├── raw/                        # Source PDFs (not committed)
+│   ├── processed/                  # Cleaned text per document
+│   └── chunks/                     # Structured JSON chunks with metadata
 │
-├── logs/                       # Timestamped log files
+├── logs/                           # Timestamped log files
 ├── requirements.txt
-├── .env                        # API keys (not committed)
+├── .env                            # API keys (not committed)
 └── README.md
 ```
 
 ---
 
-# Responsibilities
+## Setup
 
-### Amulya — Data & Retrieval Layer (`src/`)
+### 1. Clone and install
 
-* PDF ingestion and text cleaning
-* Structured chunking by article/section
-* Embedding generation (sentence-transformers)
-* Pinecone indexing
-* Vector retrieval
-
-Interface exposed to the reasoning layer:
-
-```python
-retrieve(query: str, top_k: int) -> list[dict]
-```
-
-Returns:
-
-```python
-{
-    "text": "regulatory snippet",
-    "metadata": {
-        "law_name": "EU AI Act",
-        "article_number": "10",
-        "section_number": "2",
-        "chunk_id": "eu_ai_10_2"
-    },
-    "score": 0.89
-}
-```
-
-Regulatory documents covered:
-- EU AI Act
-- EU AI Act Annex
-- Colorado AI Act
-- NIST AI Risk Management Framework
-- NYC Local Law 144
-
----
-
-### Prisha — Reasoning Layer
-
-* `query_interface.py` — query intake and CLI
-* `rlm_engine.py` — LLM query decomposition
-* `reasoning_orchestrator.py` — retrieval orchestration
-* `answer_synthesizer.py` — answer synthesis and citation formatting
-
----
-
-### 2. Hybrid score fusion across incompatible scales
-
-**Problem:** BM25 raw scores and Pinecone cosine similarity scores are on completely different scales and distributions. A naïve weighted average would be dominated by whichever scale happened to produce larger numbers.
-
-```
+```bash
 git clone https://github.com/AmulyaP07-15/ReguGrounded.git
 cd ReguGrounded
-```
-
-### 2. Create and activate the environment
-
-```
-python3 -m venv RegGrounded_env
-source RegGrounded_env/bin/activate
-```
-
-**Solution:** BM25 scores are normalised to [0, 1] before fusion by dividing by the top result's score. The final hybrid score is `semantic_weight × cosine + keyword_weight × bm25_norm`. Weights are dynamically adjusted: queries with legal citations (e.g. `§ 20-871`) or very short queries (≤3 tokens) get a higher keyword weight (0.5 vs 0.4 default) since exact term matching matters more than semantic similarity in those cases.
-
----
-
-### 3. Jurisdiction filtering breaking multi-jurisdiction queries
-
-**Problem:** Automatically filtering retrieved chunks to a detected jurisdiction is useful for specific queries ("What does NYC require?") but breaks comparison queries ("How do NYC and the EU AI Act differ?"). An aggressive filter would silently return only half the evidence.
-
-**Solution:** `_detect_jurisdictions()` returns `None` (no filter) when the query contains multiple jurisdiction signals or comparison language ("vs", "differ", "compare", "both"). Only unambiguous single-jurisdiction queries trigger a Pinecone metadata filter. This was validated with dedicated tests covering both explicit and comparison query patterns.
-
----
-
-### 4. Query expansion inflating noise for official citations
-
-**Problem:** Expanding a query like "What does Article 9 require?" with synonyms adds irrelevant terms and dilutes the precise article match. Expanding "AEDT requirements" is useful; expanding `§ 20-871` is harmful.
-
-**Solution:** `QueryExpander` checks for legal citation patterns (`Article N`, `§ X-Y`) and official statutory terms before expanding. If the query already contains precise regulatory language, expansion is skipped entirely. Synonyms already present in the query are also excluded from the expansion to avoid duplication.
-
----
-
-### 5. Cross-encoder reranking latency at query time
-
-**Problem:** The cross-encoder model (~80 MB) takes ~2 seconds to load and scores each (query, chunk) pair individually, making it too slow to run on every query from scratch.
-
-**Solution:** Two-layer mitigation: (1) Lazy singleton loading — the model loads once on first use and is reused across requests. (2) TTL score cache keyed on `sha256(query)[:16] :: chunk_id` — if the same query is seen again within 1 hour, cached scores are returned without any model inference. In the test suite, all cross-encoder calls are patched out so tests run offline with no model download required.
-
----
-
-### 6. Cache invalidation across process restarts
-
-**Problem:** An in-memory LRU cache is fast but lost on every restart, forcing expensive LLM and Pinecone calls to repeat for previously seen queries.
-
-**Solution:** `QueryCache` uses a two-layer architecture: LRU in-memory (fast, process-scoped) backed by SQLite on disk (survives restarts). On a memory miss, the disk is checked and the result is promoted back to memory on a hit. Sub-pipeline components (decomposition, retrieval results) use memory-only `ComponentCache` since they are cheaper to recompute than full query results.
-
----
-
-### 7. Thread safety for concurrent requests
-
-**Problem:** The SQLite store and LRU cache are accessed by multiple threads in a live serving context. Unprotected concurrent writes could corrupt cache state.
-
-**Solution:** `_LRUCache` wraps all reads and writes in a `threading.Lock()`. `_SQLiteStore` uses `threading.local()` to give each thread its own SQLite connection, avoiding cross-thread connection sharing which SQLite does not support safely.
-
----
-
-# Environment Setup
-
-### 1. Clone the repository
-
-```
-git clone https://github.com/AmulyaP07-15/ReguGrounded.git
-cd ReguGrounded
-```
-
-### 2. Create and activate the environment
-
-```
-python3 -m venv ReguGrounded_env
-source ReguGrounded_env/bin/activate
-```
-
-### 3. Install dependencies
-
-```
+python3 -m venv regugrounded_env
+source regugrounded_env/bin/activate
 pip install -r requirements.txt
 ```
 
----
+### 2. Configure API keys
 
-# API Key Setup
-
-Create a `.env` file in the project root:
+Create a `.env` file in the project root. The LLM client uses the first available provider in priority order: **Anthropic → Groq → Gemini**.
 
 ```
-OPENAI_API_KEY=your_openai_key_here
-PINECONE_API_KEY=your_pinecone_key_here
+# LLM provider — set ONE of the following blocks:
+
+# Option A: Anthropic (Claude)
+ANTHROPIC_API_KEY=your_key_here
+ANTHROPIC_MODEL=claude-haiku-4-5-20251001   # optional, this is the default
+
+# Option B: Groq (free tier, 30 RPM / 15,000 TPM)
+GROQ_API_KEY=your_key_here
+GROQ_API_KEY_2=your_second_key   # optional — rotated on 429
+GROQ_API_KEY_3=your_third_key    # optional
+
+# Option C: Gemini (rotates across up to 3 keys on quota errors)
+GEMINI_API_KEY=your_key_here
+GEMINI_API_KEY_2=your_second_key  # optional
+GEMINI_API_KEY_3=your_third_key   # optional
+
+# Retrieval (required)
+PINECONE_API_KEY=your_pinecone_key
 PINECONE_INDEX_NAME=regugrounded
 ```
 
 Do **not** commit `.env` to GitHub.
 
----
+### 3. Ingest documents (run once)
 
-# Running the System
-
-### 1. Ingest and index documents (run once)
-
-```
+```bash
 python src/process_all_pdfs.py
 ```
 
-Reads PDFs from `data/raw/`, chunks them by article/section, generates embeddings, and uploads 395 chunks to the Pinecone index. Only needed once per environment.
+Reads PDFs from `data/raw/`, chunks by article/section, generates embeddings, and uploads to Pinecone. Covers 5 regulatory documents: EU AI Act, EU AI Act Annex, NYC Local Law 144, Colorado AI Act, NIST AI RMF.
 
 ---
 
-### 2. Agentic RAG demo and evaluation
+## Usage
 
-`test_agentic_rag.py` is the main end-to-end test. It runs the full agentic RAG pipeline and shows exactly what happens at each stage.
+### Programmatic API
 
-**Quick mode (3 questions, compact output):**
-```
-python test_agentic_rag.py
-```
+```python
+from query_interface import process_query
 
-**Full mode (all 18 ground-truth questions):**
-```
-python test_agentic_rag.py --mode full
-```
+result = process_query("What are the bias audit requirements under NYC Local Law 144?")
+print(result["answer"])
 
-**Verbose mode — shows every pipeline stage per query:**
-```
-python test_agentic_rag.py --verbose
+# Result keys:
+# answer            — grounded natural-language response
+# citations         — list of {source, article, excerpt, jurisdiction}
+# validation        — {valid_citations, invalid_citations, hallucination_rate}
+# metadata          — latency_ms, total_chunks_retrieved, corrective_retry_used, ...
 ```
 
-**Single custom question:**
-```
-python test_agentic_rag.py --question "What are the bias audit requirements under NYC Local Law 144?"
-```
+### Interactive CLI
 
-**What it prints per query (verbose mode):**
-
-```
-[Stage 1] Query Decomposition
-  Jurisdictions detected: NYC Local Law 144
-  Sub-questions (1):
-    1. [NYC Local Law 144] What are the bias audit requirements...
-
-[Stage 2] Parallel Evidence Retrieval
-  [NYC Local Law 144] → 5 chunk(s) retrieved
-    Top chunk: NYC Local Law 144  score=0.921
-    "Employers must conduct bias audits of automated employment..."
-
-[Stage 3] Grounded Answer Synthesis
-  Answer (842 chars): ...
-
-[Stage 4] Citation Validation
-  [PASS] 3/3 citations matched to retrieved chunks
-  Citation accuracy:   100.0%
-  Hallucination rate:  0.0%  (target: ≤10%)
-```
-
-**Aggregate metrics printed at the end:**
-
-| Metric | Target |
-|---|---|
-| Success rate | ≥ 95% |
-| Citation accuracy | ≥ 90% |
-| Hallucination rate | ≤ 10% |
-| Latency p90 | ≤ 10,000 ms |
-
----
-
-### 3. Interactive CLI
-
-```
+```bash
 python query_interface.py
 ```
 
-Prompts for a compliance question, runs optional clarification (up to 2 follow-up questions), then runs the full pipeline and displays the answer, citations, and validation stats.
+### Three-way benchmark
 
----
+```bash
+# Quick mode — 10 curated questions (includes exhaustive multi-citation questions)
+python eval/compare_models.py --mode quick
 
-### 4. Unit and integration tests
+# Full mode — all 53 ground-truth questions
+python eval/compare_models.py --mode full
 
+# Save results to eval/results/
+python eval/compare_models.py --mode quick --save
 ```
+
+### Run tests
+
+```bash
 python -m pytest tests/ -v
 ```
 
@@ -344,65 +211,79 @@ All 154 tests run fully offline with mocked retrievers and LLM responses.
 
 ---
 
-### 5. Full evaluation suite
+## Evaluation Metrics
 
-```
-python eval/run_all_evals.py --mode full --verbose
-```
+The benchmark (`eval/compare_models.py`) measures three systems across:
 
-Runs four evaluation suites in sequence:
+| Metric | Description |
+|---|---|
+| `citation_accuracy` | % of cited sources/articles matched to retrieved chunks |
+| `hallucination_rate` | % of citations NOT found in retrieved evidence |
+| `avg_citations` | Average structured citations per answer |
+| `latency_ms` | End-to-end wall-clock time per query |
+| `corrective_retries` | CAG only — how often the retry loop fired |
+| `fallback_rate` | % of queries where LLM was unavailable (excluded from accuracy stats) |
 
-| Suite | Script | What it measures |
+### Why the three systems differ
+
+**Standard RAG** — single retrieve (top-5 chunks), one LLM call. No decomposition means multi-jurisdiction questions get half the evidence. No validation means hallucinated citations go uncorrected.
+
+**ARAG** — decomposes the query into jurisdiction-specific sub-questions, retrieves per sub-question. More coverage, but still no corrective loop: if the LLM invents a citation, it stays in the answer.
+
+**CAG** — same decomposition and retrieval as ARAG, plus a citation validator that checks every cited article against the retrieved chunk metadata. If `hallucination_rate > 10%`, the answer is re-synthesized with a CORRECTIVE CONSTRAINT that explicitly forbids the invalid citations. Exhaustive questions (requiring 6–13 citations) force hallucination in both baselines; only CAG recovers.
+
+---
+
+## Key Engineering Challenges
+
+### 1. Hybrid score fusion across incompatible scales
+
+BM25 raw scores and Pinecone cosine similarity scores are on completely different scales. A naïve weighted average is dominated by whichever scale happens to produce larger numbers.
+
+**Solution:** BM25 scores are normalised to [0, 1] by dividing by the top result's score. Final hybrid score: `semantic_weight × cosine + keyword_weight × bm25_norm`. Weights are dynamically adjusted — queries with legal citations (`§ 20-871`) or very short queries (≤3 tokens) get a higher keyword weight (0.5 vs 0.4 default).
+
+### 2. Jurisdiction filtering breaking multi-jurisdiction queries
+
+Automatically filtering retrieved chunks to a detected jurisdiction is useful for specific queries ("What does NYC require?") but breaks comparison queries ("How do NYC and the EU AI Act differ?").
+
+**Solution:** `_detect_jurisdictions()` returns `None` (no filter) when the query contains multiple jurisdiction signals or comparison language ("vs", "differ", "compare", "both"). Only unambiguous single-jurisdiction queries trigger a Pinecone metadata filter.
+
+### 3. Query expansion inflating noise for official citations
+
+Expanding a query like "What does Article 9 require?" with synonyms dilutes the precise article match. Expanding "AEDT requirements" is useful; expanding `§ 20-871` is harmful.
+
+**Solution:** `QueryExpander` checks for legal citation patterns (`Article N`, `§ X-Y`) before expanding. If the query already contains precise regulatory language, expansion is skipped entirely.
+
+### 4. Cross-encoder reranking latency
+
+The cross-encoder model (~80 MB) takes ~2 seconds to load and scores each (query, chunk) pair individually.
+
+**Solution:** Lazy singleton loading (model loads once, reused across requests) plus a TTL score cache keyed on `sha256(query)[:16] :: chunk_id`. Cached scores are returned without model inference for repeated queries within 1 hour.
+
+### 5. LLM provider rate limits
+
+Gemini free tier has a strict daily quota. Groq free tier allows 30 RPM / 15,000 TPM — the TPM limit is the real bottleneck on complex regulatory questions.
+
+**Solution:** `utils/llm_client.py` provides a unified client that automatically selects and rotates across providers. Groq is throttled at 2.4s per call (25 RPM) to stay within the 30 RPM free tier. Up to 3 keys per provider are rotated on 429 errors.
+
+### 6. Short-form citation matching in the validator
+
+The citation validator uses regex to match cited sources against retrieved chunks. Short-form references ("Article 9", "§ 20-871") without a law name can match too broadly when many chunks are in context, producing false negatives (missed hallucinations) for ARAG and Standard RAG.
+
+**Solution:** Validator designed to be strict on the CAG path (used for corrective retry decisions) while remaining comparable across systems for benchmark reporting. Exhaustive multi-citation questions (Q16, Q52, Q53) were added specifically to expose hallucination even with lenient short-form matching.
+
+---
+
+## Ground Truth
+
+53 curated questions with expected jurisdiction coverage and citation counts:
+
+| Jurisdiction | IDs | Count |
 |---|---|---|
-| Retrieval quality | `evaluate_retrieval.py` | Precision@5, Recall@5, F1, MRR |
-| Citation accuracy | `evaluate_citations.py` | Precision, Recall, Hallucination Rate |
-| Answer correctness | `evaluate_answers.py` | LLM-judge scores (0–5) for relevance, accuracy, completeness |
-| End-to-end performance | `evaluate_e2e.py` | Success rate, latency p50/p90/p99 |
+| EU AI Act | Q1–Q16 | 16 |
+| NYC Local Law 144 | Q17–Q26 | 10 |
+| Colorado AI Act | Q27–Q36 | 10 |
+| NIST AI RMF | Q37–Q44 | 8 |
+| Cross-jurisdictional | Q45–Q53 | 9 |
 
-Saves a timestamped JSON report to `eval/results/`.
-
-Individual suites can also be run directly:
-```
-python eval/evaluate_retrieval.py --top-k 5 --verbose
-python eval/evaluate_citations.py --mode full
-python eval/evaluate_answers.py --mode quick
-python eval/benchmark_hallucination.py --mode full --verbose --save
-```
-
----
-
-# Development Progress
-
-- [x] PDF ingestion and text cleaning
-- [x] Structured chunking (395 chunks across 5 documents)
-- [x] Embedding generation and Pinecone indexing
-- [x] Base `retrieve(query)` interface
-- [x] BM25 keyword index with legal citation-aware tokenizer
-- [x] Hybrid BM25 + semantic search with dynamic score fusion
-- [x] Jurisdiction detection and auto-filtering
-- [x] Regulatory query expansion (rule-based, zero latency)
-- [x] Cross-encoder reranking with TTL score cache
-- [x] Utils layer: cache, guardrails, rate limiter, metrics, trace IDs
-- [x] Citation validator (post-hoc hallucination detection)
-- [x] 154-test suite (all passing, fully offline)
-- [x] Evaluation framework with ground truth and baselines
-- [x] End-to-end grounded responses with citations (`test_agentic_rag.py`)
-
----
-
-# Notes
-
-* The LLM **never answers directly from its own knowledge**
-* All answers must be grounded in retrieved regulatory text
-* Every response must include **citations and supporting evidence**
-* Citation accuracy is measured per-response via `citation_validator.py`
-
----
-
-# Future Phases
-
-Phase 3 will include:
-
-* Live end-to-end grounded response pipeline
-* Hallucination rate benchmarking against baseline RAG
-* Expanded ground truth and adversarial query evaluation
+Includes 3 exhaustive multi-citation questions (Q16: 13 expected citations, Q52: 9, Q53: 6) designed to force hallucination in systems that cannot retrieve all relevant articles.
