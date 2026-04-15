@@ -2,7 +2,7 @@
 
 A multi-stage RAG pipeline for regulatory compliance Q&A, grounded in retrieved evidence with built-in citation validation and a corrective retry loop.
 
-The project benchmarks three systems — Standard RAG, Agentic RAG (ARAG), and Corrective Agentic Generation (CAG) — across 53 curated questions spanning EU AI Act, NYC Local Law 144, Colorado AI Act, NIST AI RMF, and cross-jurisdictional scenarios.
+The project benchmarks three systems - Standard RAG, Agentic RAG (ARAG), and Corrective Agentic Generation (CAG) - across 53 curated questions spanning EU AI Act, NYC Local Law 144, Colorado AI Act, NIST AI RMF, and cross-jurisdictional scenarios.
 
 ---
 
@@ -21,25 +21,25 @@ The project benchmarks three systems — Standard RAG, Agentic RAG (ARAG), and C
 ```
 User Query
      ↓
-Query Interface      — input guardrails, trace ID, rate limiting
+Query Interface      - input guardrails, trace ID, rate limiting
      ↓
-Query Clarifier      — optional ambiguity detection (interactive mode)
+Query Clarifier      - optional ambiguity detection (interactive mode)
      ↓
-RLM Engine           — LLM decomposition into jurisdiction-specific sub-questions
+RLM Engine           - LLM decomposition into jurisdiction-specific sub-questions
      ↓
-Reasoning Orchestrator — parallel retrieval across all sub-questions
+Reasoning Orchestrator - parallel retrieval across all sub-questions
    ├── Query Expansion       (informal → statutory terminology)
    ├── Jurisdiction Filter   (auto-detect relevant regulation)
    ├── Hybrid Search         (BM25 keyword + Pinecone semantic)
    └── Cross-Encoder Rerank  (precise 2nd-pass scoring)
      ↓
-Answer Synthesizer   — LLM synthesis grounded in retrieved text only
+Answer Synthesizer   - LLM synthesis grounded in retrieved text only
      ↓
-Citation Validator   — hallucination detection: checks every cited source/article
+Citation Validator   - hallucination detection: checks every cited source/article
      ↓                 against retrieved chunk metadata
   [if hallucination_rate > 10%]
      ↓
-Corrective Retry     — re-synthesize with forbidden citation list injected
+Corrective Retry     - re-synthesize with forbidden citation list injected
      ↓
 Grounded Response + Citations
 ```
@@ -132,7 +132,7 @@ pip install -r requirements.txt
 Create a `.env` file in the project root. The LLM client uses the first available provider in priority order: **Anthropic → Groq → Gemini**.
 
 ```
-# LLM provider — set ONE of the following blocks:
+# LLM provider - set ONE of the following blocks:
 
 # Option A: Anthropic (Claude)
 ANTHROPIC_API_KEY=your_key_here
@@ -140,7 +140,7 @@ ANTHROPIC_MODEL=claude-haiku-4-5-20251001   # optional, this is the default
 
 # Option B: Groq (free tier, 30 RPM / 15,000 TPM)
 GROQ_API_KEY=your_key_here
-GROQ_API_KEY_2=your_second_key   # optional — rotated on 429
+GROQ_API_KEY_2=your_second_key   # optional - rotated on 429
 GROQ_API_KEY_3=your_third_key    # optional
 
 # Option C: Gemini (rotates across up to 3 keys on quota errors)
@@ -176,10 +176,10 @@ result = process_query("What are the bias audit requirements under NYC Local Law
 print(result["answer"])
 
 # Result keys:
-# answer            — grounded natural-language response
-# citations         — list of {source, article, excerpt, jurisdiction}
-# validation        — {valid_citations, invalid_citations, hallucination_rate}
-# metadata          — latency_ms, total_chunks_retrieved, corrective_retry_used, ...
+# answer            - grounded natural-language response
+# citations         - list of {source, article, excerpt, jurisdiction}
+# validation        - {valid_citations, invalid_citations, hallucination_rate}
+# metadata          - latency_ms, total_chunks_retrieved, corrective_retry_used, ...
 ```
 
 ### Interactive CLI
@@ -191,10 +191,10 @@ python query_interface.py
 ### Three-way benchmark
 
 ```bash
-# Quick mode — 10 curated questions (includes exhaustive multi-citation questions)
+# Quick mode - 10 curated questions (includes exhaustive multi-citation questions)
 python eval/compare_models.py --mode quick
 
-# Full mode — all 53 ground-truth questions
+# Full mode - all 53 ground-truth questions
 python eval/compare_models.py --mode full
 
 # Save results to eval/results/
@@ -221,16 +221,16 @@ The benchmark (`eval/compare_models.py`) measures three systems across:
 | `hallucination_rate` | % of citations NOT found in retrieved evidence |
 | `avg_citations` | Average structured citations per answer |
 | `latency_ms` | End-to-end wall-clock time per query |
-| `corrective_retries` | CAG only — how often the retry loop fired |
+| `corrective_retries` | CAG only - how often the retry loop fired |
 | `fallback_rate` | % of queries where LLM was unavailable (excluded from accuracy stats) |
 
 ### Why the three systems differ
 
-**Standard RAG** — single retrieve (top-5 chunks), one LLM call. No decomposition means multi-jurisdiction questions get half the evidence. No validation means hallucinated citations go uncorrected.
+**Standard RAG** - single retrieve (top-5 chunks), one LLM call. No decomposition means multi-jurisdiction questions get half the evidence. No validation means hallucinated citations go uncorrected.
 
-**ARAG** — decomposes the query into jurisdiction-specific sub-questions, retrieves per sub-question. More coverage, but still no corrective loop: if the LLM invents a citation, it stays in the answer.
+**ARAG** - decomposes the query into jurisdiction-specific sub-questions, retrieves per sub-question. More coverage, but still no corrective loop: if the LLM invents a citation, it stays in the answer.
 
-**CAG** — same decomposition and retrieval as ARAG, plus a citation validator that checks every cited article against the retrieved chunk metadata. If `hallucination_rate > 10%`, the answer is re-synthesized with a CORRECTIVE CONSTRAINT that explicitly forbids the invalid citations. Exhaustive questions (requiring 6–13 citations) force hallucination in both baselines; only CAG recovers.
+**CAG** - same decomposition and retrieval as ARAG, plus a citation validator that checks every cited article against the retrieved chunk metadata. If `hallucination_rate > 10%`, the answer is re-synthesized with a CORRECTIVE CONSTRAINT that explicitly forbids the invalid citations. Exhaustive questions (requiring 6–13 citations) force hallucination in both baselines; only CAG recovers.
 
 ---
 
@@ -238,7 +238,7 @@ The benchmark (`eval/compare_models.py`) measures three systems across:
 
 | # | Challenge | Solution |
 |---|---|---|
-| 1 | **Hybrid score fusion** — BM25 and cosine similarity are on incompatible scales | Normalise BM25 to [0,1]; dynamically increase keyword weight for queries containing legal citations or ≤3 tokens |
+| 1 | **Hybrid score fusion** - BM25 and cosine similarity are on incompatible scales | Normalise BM25 to [0,1]; dynamically increase keyword weight for queries containing legal citations or ≤3 tokens |
 | 2 | **Jurisdiction filtering breaks multi-jurisdiction queries** | Return `None` (no filter) when the query contains multiple jurisdiction signals or comparison language ("vs", "differ", "compare") |
 | 3 | **Query expansion inflates noise for official citations** | Skip expansion entirely when the query already contains precise regulatory language (`Article N`, `§ X-Y`) |
 | 4 | **Cross-encoder reranking latency** | Lazy singleton load + TTL score cache keyed on query hash + chunk ID; repeated queries skip model inference |
