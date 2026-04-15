@@ -155,20 +155,15 @@ def _jurisdiction_to_doc_id(juris: str | None) -> str | None:
 
 def compute_metrics(chunks: list, expected: list) -> dict:
     if not expected:
-        return {"precision": 1.0, "recall": 1.0, "f1": 1.0, "mrr": 1.0,
-                "n_retrieved": len(chunks)}
+        return {"recall": 1.0, "coverage": 1.0, "mrr": 1.0,
+                "n_retrieved": len(chunks), "n_expected": 0}
 
     hit_flags = _hits(chunks, expected)
     recall    = sum(hit_flags) / len(expected)
 
-    # Precision: fraction of retrieved chunks that match *any* expected citation
-    relevant_chunks = sum(
-        1 for c in chunks
-        if any(_chunk_matches_citation(c, e) for e in expected)
-    )
-    precision = relevant_chunks / len(chunks) if chunks else 0.0
-
-    f1  = 2*precision*recall / (precision+recall) if (precision+recall) else 0.0
+    # Coverage: fraction of expected citations covered by at least one chunk
+    # (same as recall — kept separately for clarity in the table)
+    coverage = recall
 
     # MRR: reciprocal rank of first chunk matching any expected citation
     mrr = 0.0
@@ -178,11 +173,11 @@ def compute_metrics(chunks: list, expected: list) -> dict:
             break
 
     return {
-        "precision":   round(precision, 4),
-        "recall":      round(recall,    4),
-        "f1":          round(f1,        4),
-        "mrr":         round(mrr,       4),
+        "recall":      round(recall,   4),
+        "coverage":    round(coverage, 4),
+        "mrr":         round(mrr,      4),
         "n_retrieved": len(chunks),
+        "n_expected":  len(expected),
     }
 
 
@@ -205,7 +200,7 @@ def run_eval(questions: list, top_k: int = 5, verbose: bool = False):
 
     for name, retrieve_fn in models:
         print(f"\n  Running {name}...")
-        P, R, F, MRR, N = [], [], [], [], []
+        R, MRR, N = [], [], []
 
         for q in questions:
             expected = q.get("expected_citations", [])
@@ -213,28 +208,24 @@ def run_eval(questions: list, top_k: int = 5, verbose: bool = False):
                 chunks = retrieve_fn(q["question"])
             except Exception as e:
                 print(f"    ERROR Q{q['id']}: {e}")
-                P.append(0); R.append(0); F.append(0); MRR.append(0); N.append(0)
+                R.append(0); MRR.append(0); N.append(0)
                 continue
 
             m = compute_metrics(chunks, expected)
-            P.append(m["precision"]); R.append(m["recall"])
-            F.append(m["f1"]);        MRR.append(m["mrr"])
-            N.append(m["n_retrieved"])
+            R.append(m["recall"]); MRR.append(m["mrr"]); N.append(m["n_retrieved"])
 
             if verbose:
                 status = "OK" if m["recall"] >= 0.5 else "WARN"
                 print(f"    [{q['id']:02d}] {status}  "
-                      f"P={m['precision']:.2f}  R={m['recall']:.2f}  "
-                      f"F1={m['f1']:.2f}  MRR={m['mrr']:.2f}  "
-                      f"chunks={m['n_retrieved']}  | {q['question'][:55]}")
+                      f"R={m['recall']:.2f}  MRR={m['mrr']:.2f}  "
+                      f"chunks={m['n_retrieved']}  exp={m['n_expected']}  "
+                      f"| {q['question'][:55]}")
 
-        n = len(P)
+        n = len(R)
         all_results[name] = {
-            "precision": round(sum(P)/n, 4),
-            "recall":    round(sum(R)/n, 4),
-            "f1":        round(sum(F)/n, 4),
-            "mrr":       round(sum(MRR)/n, 4),
-            "avg_chunks":round(sum(N)/n, 1),
+            "recall":     round(sum(R)/n,   4),
+            "mrr":        round(sum(MRR)/n, 4),
+            "avg_chunks": round(sum(N)/n,   1),
         }
 
     _print_table(all_results, top_k)
@@ -246,7 +237,7 @@ def _print_table(results: dict, top_k: int):
     col   = 18
 
     print(f"\n\n{'='*75}")
-    print(f"  RETRIEVAL EVALUATION — article-level  (top_k={top_k} per sub-question)")
+    print(f"  RETRIEVAL EVALUATION — Recall@k  (top_k={top_k} per sub-question)")
     print(f"{'='*75}")
 
     header = f"  {'Metric':<{col}}"
@@ -256,17 +247,15 @@ def _print_table(results: dict, top_k: int):
     print(f"  {'-'*73}")
 
     rows = [
-        ("Precision@k",  "precision"),
-        ("Recall@k",     "recall"),
-        ("F1@k",         "f1"),
-        ("MRR",          "mrr"),
-        ("Avg Chunks",   "avg_chunks"),
+        ("Recall@k",    "recall",      "%"),
+        ("MRR",         "mrr",         "%"),
+        ("Avg Chunks",  "avg_chunks",  "f"),
     ]
-    for label, key in rows:
+    for label, key, fmt in rows:
         line = f"  {label:<{col}}"
         for n in names:
             v = results[n][key]
-            line += f"  {v:>17.1%}" if key != "avg_chunks" else f"  {v:>17.1f}"
+            line += f"  {v:>17.1%}" if fmt == "%" else f"  {v:>17.1f}"
         print(line)
 
     print(f"  {'-'*73}")
