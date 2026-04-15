@@ -236,41 +236,22 @@ The benchmark (`eval/compare_models.py`) measures three systems across:
 
 ## Key Engineering Challenges
 
-### 1. Hybrid score fusion across incompatible scales
+| # | Challenge | Solution |
+|---|---|---|
+| 1 | **Hybrid score fusion** — BM25 and cosine similarity are on incompatible scales | Normalise BM25 to [0,1]; dynamically increase keyword weight for queries containing legal citations or ≤3 tokens |
+| 2 | **Jurisdiction filtering breaks multi-jurisdiction queries** | Return `None` (no filter) when the query contains multiple jurisdiction signals or comparison language ("vs", "differ", "compare") |
+| 3 | **Query expansion inflates noise for official citations** | Skip expansion entirely when the query already contains precise regulatory language (`Article N`, `§ X-Y`) |
+| 4 | **Cross-encoder reranking latency** | Lazy singleton load + TTL score cache keyed on query hash + chunk ID; repeated queries skip model inference |
+| 5 | **LLM provider rate limits** | Unified `utils/llm_client.py` rotates across Anthropic → Groq → Gemini; Groq throttled at 2.4s/call; up to 3 keys per provider rotated on 429 |
+| 6 | **Short-form citation matching producing false negatives** | Added exhaustive multi-citation questions (Q16: 13 citations, Q52: 9, Q53: 6) that exceed retrieval coverage, forcing hallucination even with lenient matching |
 
-BM25 raw scores and Pinecone cosine similarity scores are on completely different scales. A naïve weighted average is dominated by whichever scale happens to produce larger numbers.
+---
 
-**Solution:** BM25 scores are normalised to [0, 1] by dividing by the top result's score. Final hybrid score: `semantic_weight × cosine + keyword_weight × bm25_norm`. Weights are dynamically adjusted — queries with legal citations (`§ 20-871`) or very short queries (≤3 tokens) get a higher keyword weight (0.5 vs 0.4 default).
+## Statement of Contributions
 
-### 2. Jurisdiction filtering breaking multi-jurisdiction queries
+**Prisha Srivastava** designed and implemented the reasoning layer, including the RLM query decomposition engine (`rlm_engine.py`), reasoning orchestrator (`reasoning_orchestrator.py`), answer synthesizer (`answer_synthesizer.py`), and query interface (`query_interface.py`). Prisha also designed and implemented the evaluation framework, including the citation, answer quality, and end-to-end evaluation scripts, and the multi-pipeline comparison across Standard RAG, Agentic RAG, and ReguGrounded.
 
-Automatically filtering retrieved chunks to a detected jurisdiction is useful for specific queries ("What does NYC require?") but breaks comparison queries ("How do NYC and the EU AI Act differ?").
-
-**Solution:** `_detect_jurisdictions()` returns `None` (no filter) when the query contains multiple jurisdiction signals or comparison language ("vs", "differ", "compare", "both"). Only unambiguous single-jurisdiction queries trigger a Pinecone metadata filter.
-
-### 3. Query expansion inflating noise for official citations
-
-Expanding a query like "What does Article 9 require?" with synonyms dilutes the precise article match. Expanding "AEDT requirements" is useful; expanding `§ 20-871` is harmful.
-
-**Solution:** `QueryExpander` checks for legal citation patterns (`Article N`, `§ X-Y`) before expanding. If the query already contains precise regulatory language, expansion is skipped entirely.
-
-### 4. Cross-encoder reranking latency
-
-The cross-encoder model (~80 MB) takes ~2 seconds to load and scores each (query, chunk) pair individually.
-
-**Solution:** Lazy singleton loading (model loads once, reused across requests) plus a TTL score cache keyed on `sha256(query)[:16] :: chunk_id`. Cached scores are returned without model inference for repeated queries within 1 hour.
-
-### 5. LLM provider rate limits
-
-Gemini free tier has a strict daily quota. Groq free tier allows 30 RPM / 15,000 TPM — the TPM limit is the real bottleneck on complex regulatory questions.
-
-**Solution:** `utils/llm_client.py` provides a unified client that automatically selects and rotates across providers. Groq is throttled at 2.4s per call (25 RPM) to stay within the 30 RPM free tier. Up to 3 keys per provider are rotated on 429 errors.
-
-### 6. Short-form citation matching in the validator
-
-The citation validator uses regex to match cited sources against retrieved chunks. Short-form references ("Article 9", "§ 20-871") without a law name can match too broadly when many chunks are in context, producing false negatives (missed hallucinations) for ARAG and Standard RAG.
-
-**Solution:** Validator designed to be strict on the CAG path (used for corrective retry decisions) while remaining comparable across systems for benchmark reporting. Exhaustive multi-citation questions (Q16, Q52, Q53) were added specifically to expose hallucination even with lenient short-form matching.
+**Amulya Penikalapati** designed and implemented the data and retrieval layer, including PDF ingestion, structured chunking, embedding generation, and Pinecone indexing. Amulya also built the hybrid retrieval pipeline combining BM25 keyword search with semantic search, jurisdiction filtering, query expansion, and cross-encoder reranking, as well as the full utility layer covering caching, guardrails, logging, metrics, and rate limiting. Amulya also implemented the Corrective Augmented Generation (CAG) architecture, including the Reasoning Language Model for query decomposition, the citation validation system, and the corrective retry loop that actively detects and fixes hallucinated citations.
 
 ---
 
