@@ -281,11 +281,7 @@ The three-way benchmark (`eval/compare_models.py`) measures Standard RAG, ARAG, 
 
 **Prisha Srivastava** designed and implemented the reasoning layer, including the RLM query decomposition engine (`rlm_engine.py`), reasoning orchestrator (`reasoning_orchestrator.py`), answer synthesizer (`answer_synthesizer.py`), and query interface (`query_interface.py`). Prisha also designed and implemented the evaluation framework, including the citation, answer quality, and end-to-end evaluation scripts, and the multi-pipeline comparison across Standard RAG, Agentic RAG, and ReguGrounded.
 
-<<<<<<< HEAD
-**Amulya Penikalapati** designed and implemented the data and retrieval layer, including PDF ingestion, structured chunking, embedding generation, and Pinecone indexing. Amulya also built the hybrid retrieval pipeline combining BM25 keyword search with semantic search, jurisdiction filtering, query expansion, and cross-encoder reranking, as well as the full utility layer covering caching, guardrails, logging, metrics, and rate limiting. Amulya also implemented the Cached Augmented Generation (CAG) architecture, including the Reasoning Language Model for query decomposition, the citation validation system, and the corrective retry loop that actively detects and fixes hallucinated citations.
-=======
 **Amulya Penikalapati** designed and implemented the data and retrieval layer, including PDF ingestion, structured chunking, embedding generation, and Pinecone indexing. Amulya also built the hybrid retrieval pipeline combining BM25 keyword search with semantic search, jurisdiction filtering, query expansion, and cross-encoder reranking, as well as the full utility layer covering caching, guardrails, logging, metrics, and rate limiting. Amulya also implemented the Cache-Augmented Generation (CAG) architecture, including the Reasoning Language Model for query decomposition, the full corpus loading and Anthropic prompt caching integration, the citation validation system, and the corrective retry loop that actively detects and fixes hallucinated citations.
->>>>>>> ea845bd (Update README: fix architecture descriptions, repo structure, and CAG naming)
 
 ---
 
