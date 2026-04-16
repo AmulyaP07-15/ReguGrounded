@@ -151,7 +151,7 @@ GEMINI_API_KEY=your_key_here
 GEMINI_API_KEY_2=your_second_key  # optional
 GEMINI_API_KEY_3=your_third_key   # optional
 
-# Retrieval (required)
+# Pinecone (required for ARAG baseline only — ReguGrounded uses full corpus, no retrieval)
 PINECONE_API_KEY=your_pinecone_key
 PINECONE_INDEX_NAME=regugrounded
 ```
@@ -164,7 +164,7 @@ Do **not** commit `.env` to GitHub.
 python src/process_all_pdfs.py
 ```
 
-Reads PDFs from `data/raw/`, chunks by article/section, generates embeddings, and uploads to Pinecone. Covers 5 regulatory documents: EU AI Act, EU AI Act Annex, NYC Local Law 144, Colorado AI Act, NIST AI RMF.
+Reads PDFs from `data/raw/`, chunks by article/section, and writes structured JSON to `data/chunks/`. Also generates embeddings and uploads to Pinecone (required for the ARAG baseline only — ReguGrounded reads directly from `data/chunks/`). Covers 5 regulatory documents: EU AI Act, EU AI Act Annex, NYC Local Law 144, Colorado AI Act, NIST AI RMF.
 
 ---
 
@@ -182,7 +182,7 @@ print(result["answer"])
 # answer            - grounded natural-language response
 # citations         - list of {source, article, excerpt, jurisdiction}
 # validation        - {valid_citations, invalid_citations, hallucination_rate}
-# metadata          - latency_ms, total_chunks_retrieved, corrective_retry_used, ...
+# metadata          - latency_ms, total_chunks_retrieved, corrective_action_taken, ...
 ```
 
 ### Sample query and output
@@ -256,7 +256,7 @@ python eval/run_all_evals.py --mode full --skip retrieval
 python -m pytest tests/ -v
 ```
 
-All 154 tests run fully offline with mocked retrievers and LLM responses.
+All 115 tests run fully offline with mocked retrievers and LLM responses.
 
 ---
 
@@ -299,7 +299,7 @@ The three-way benchmark (`eval/compare_models.py`) measures Standard RAG, ARAG, 
 
 **Prisha Srivastava** designed and implemented the reasoning layer, including the RLM query decomposition engine (`rlm_engine.py`), reasoning orchestrator (`reasoning_orchestrator.py`), answer synthesizer (`answer_synthesizer.py`), and query interface (`query_interface.py`). Prisha also designed and implemented the evaluation framework, including the citation, answer quality, and end-to-end evaluation scripts, and the multi-pipeline comparison across Standard RAG, Agentic RAG, and ReguGrounded.
 
-**Amulya Penikalapati** designed and implemented the data and retrieval layer, including PDF ingestion, structured chunking, embedding generation, and Pinecone indexing, as well as the full utility layer covering caching, guardrails, logging, metrics, and rate limiting. Amulya also implemented the Cache-Augmented Generation (CAG) architecture, including the Reasoning Language Model for query decomposition, the full corpus loading and Anthropic prompt caching integration, the citation validation system, and the corrective retry loop that actively detects and fixes hallucinated citations.
+**Amulya Penikalapati** designed and implemented the data and retrieval layer, including PDF ingestion, structured chunking, embedding generation, and Pinecone indexing, as well as the full utility layer covering caching, guardrails, logging, metrics, and rate limiting. Amulya also implemented the Cache-Augmented Generation (CAG) architecture, including the full corpus loading and Anthropic prompt caching integration, the citation validation system, and the corrective retry loop that actively detects and fixes hallucinated citations.
 
 ---
 
