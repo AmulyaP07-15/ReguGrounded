@@ -56,20 +56,13 @@ regugrounded/
 ├── answer_synthesizer.py           # Grounded answer synthesis
 ├── citation_validator.py           # Hallucination detection
 ├── query_clarifier.py              # Interactive clarification
-├── test_agentic_rag.py             # End-to-end demo + trace script for the agentic pipeline
 │
 ├── src/                            # Data & retrieval layer
 │   ├── process_all_pdfs.py         # One-time ingestion pipeline
 │   ├── pdf_ingestion.py            # PDF text extraction and cleaning
 │   ├── chunker.py                  # Split by article/section with metadata
 │   ├── embedder.py                 # Embeddings + Pinecone upload
-│   ├── retriever.py                # Base Pinecone retrieval
-│   ├── enhanced_retriever.py       # Hybrid BM25 + semantic + reranking
-│   ├── bm25_index.py               # Legal citation-aware BM25 index
-│   ├── query_expander.py           # Regulatory synonym expansion
-│   ├── reranker.py                 # Cross-encoder reranking (lazy-loaded)
-│   ├── retrieval_config.py         # Feature toggles
-│   └── fix_colorado_sections.py    # One-time patch: map bill sections to CRS section numbers
+│   └── retriever.py                # Pinecone retrieval (used by ARAG baseline)
 │
 ├── utils/                          # Infrastructure
 │   ├── llm_client.py               # Unified LLM client (Anthropic / Groq / Gemini)
@@ -94,7 +87,6 @@ regugrounded/
 │   ├── evaluate_answers.py         # LLM-judge answer correctness (0–5 scale)
 │   ├── evaluate_e2e.py             # End-to-end latency and success rate
 │   ├── evaluate_retrieval.py       # Retrieval Recall@k / Precision@k / F1
-│   ├── evaluate_retrieval_per_model.py  # Per-model retrieval breakdown
 │   ├── benchmark_hallucination.py  # Hallucination stress-test across exhaustive questions
 │   ├── ground_truth.json           # 53 annotated questions (IDs 1–53)
 │   ├── questions/                  # Per-jurisdiction question files
@@ -109,12 +101,11 @@ regugrounded/
 │   │   └── cache_augmented_rag.py  # Baseline: full corpus in context, no decomposition, no validation
 │   └── results/                    # Timestamped JSON benchmark reports
 │
-├── tests/                          # 154-test offline suite (all passing)
+├── tests/                          # Offline test suite (all passing)
 │   ├── test_cache.py
 │   ├── test_guardrails.py
 │   ├── test_integration.py
-│   ├── test_rate_limiter.py
-│   └── test_retrieval_improvements.py
+│   └── test_rate_limiter.py
 │
 ├── data/
 │   ├── raw/                        # Source PDFs (not committed)
@@ -288,7 +279,7 @@ The three-way benchmark (`eval/compare_models.py`) measures Standard RAG, ARAG, 
 
 **Standard RAG** - single retrieve (top-5 chunks), one LLM call. No decomposition means multi-jurisdiction questions get half the evidence. No validation means hallucinated citations go uncorrected.
 
-**ARAG** - decomposes the query into jurisdiction-specific sub-questions, retrieves per sub-question from Pinecone using hybrid BM25 + semantic search and cross-encoder reranking. More coverage than Standard RAG, but still no corrective loop: if the LLM invents a citation, it stays in the answer.
+**ARAG** - decomposes the query into jurisdiction-specific sub-questions and retrieves per sub-question from Pinecone. More coverage than Standard RAG, but still no corrective loop: if the LLM invents a citation, it stays in the answer.
 
 **ReguGrounded (CAG)** - loads the full regulatory corpus (~130k tokens, 395 chunks) into the LLM's context window once at startup instead of retrieving. When using Anthropic, the corpus is placed in a cached system message (`cache_control=ephemeral`) so the KV state is reused across queries. Adds RLM query decomposition and a citation validator that checks every cited article against the corpus chunk metadata. If `hallucination_rate > 10%`, the answer is re-synthesized with a corrective constraint that explicitly forbids the invalid citations. Exhaustive questions (requiring 6–13 citations) force hallucination in both baselines; only ReguGrounded recovers.
 
@@ -298,12 +289,11 @@ The three-way benchmark (`eval/compare_models.py`) measures Standard RAG, ARAG, 
 
 | # | Challenge | Solution |
 |---|---|---|
-| 1 | **Hybrid score fusion** - BM25 and cosine similarity are on incompatible scales | Normalise BM25 to [0,1]; dynamically increase keyword weight for queries containing legal citations or ≤3 tokens |
-| 2 | **Jurisdiction filtering breaks multi-jurisdiction queries** | Return `None` (no filter) when the query contains multiple jurisdiction signals or comparison language ("vs", "differ", "compare") |
-| 3 | **Query expansion inflates noise for official citations** | Skip expansion entirely when the query already contains precise regulatory language (`Article N`, `§ X-Y`) |
-| 4 | **Cross-encoder reranking latency** | Lazy singleton load + TTL score cache keyed on query hash + chunk ID; repeated queries skip model inference |
-| 5 | **LLM provider rate limits** | Unified `utils/llm_client.py` rotates across Anthropic → Groq → Gemini; Groq throttled at 2.4s/call; up to 3 keys per provider rotated on 429 |
-| 6 | **Short-form citation matching producing false negatives** | Added exhaustive multi-citation questions (Q16: 13 citations, Q52: 9, Q53: 6) that exceed retrieval coverage, forcing hallucination even with lenient matching |
+| 1 | **Jurisdiction filtering breaks multi-jurisdiction queries** | Return `None` (no filter) when the query contains multiple jurisdiction signals or comparison language ("vs", "differ", "compare") |
+| 2 | **LLM provider rate limits** | Unified `utils/llm_client.py` rotates across Anthropic → Groq → Gemini; Groq throttled at 2.4s/call; up to 3 keys per provider rotated on 429 |
+| 3 | **Short-form citation matching producing false negatives** | Added exhaustive multi-citation questions (Q16: 13 citations, Q52: 9, Q53: 6) that exceed retrieval coverage, forcing hallucination even with lenient matching |
+| 4 | **Colorado chunk metadata wrong** | Chunks were stored with bill section labels ("SECTION 1") instead of CRS section numbers ("§ 6-1-1701") — citation recall was 0% until metadata was re-mapped from chunk text |
+| 5 | **Large context KV cost** | Full corpus (~130k tokens) placed in Anthropic cached system message (`cache_control=ephemeral`) so KV state is reused across queries; only the question is re-encoded per call |
 
 ---
 
@@ -311,7 +301,7 @@ The three-way benchmark (`eval/compare_models.py`) measures Standard RAG, ARAG, 
 
 **Prisha Srivastava** designed and implemented the reasoning layer, including the RLM query decomposition engine (`rlm_engine.py`), reasoning orchestrator (`reasoning_orchestrator.py`), answer synthesizer (`answer_synthesizer.py`), and query interface (`query_interface.py`). Prisha also designed and implemented the evaluation framework, including the citation, answer quality, and end-to-end evaluation scripts, and the multi-pipeline comparison across Standard RAG, Agentic RAG, and ReguGrounded.
 
-**Amulya Penikalapati** designed and implemented the data and retrieval layer, including PDF ingestion, structured chunking, embedding generation, and Pinecone indexing. Amulya also built the hybrid retrieval pipeline combining BM25 keyword search with semantic search, jurisdiction filtering, query expansion, and cross-encoder reranking, as well as the full utility layer covering caching, guardrails, logging, metrics, and rate limiting. Amulya also implemented the Cache-Augmented Generation (CAG) architecture, including the Reasoning Language Model for query decomposition, the full corpus loading and Anthropic prompt caching integration, the citation validation system, and the corrective retry loop that actively detects and fixes hallucinated citations.
+**Amulya Penikalapati** designed and implemented the data and retrieval layer, including PDF ingestion, structured chunking, embedding generation, and Pinecone indexing, as well as the full utility layer covering caching, guardrails, logging, metrics, and rate limiting. Amulya also implemented the Cache-Augmented Generation (CAG) architecture, including the Reasoning Language Model for query decomposition, the full corpus loading and Anthropic prompt caching integration, the citation validation system, and the corrective retry loop that actively detects and fixes hallucinated citations.
 
 ---
 
