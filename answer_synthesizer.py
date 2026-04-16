@@ -30,6 +30,7 @@ class AnswerSynthesizer:
         decomposition: Dict,
         evidence_bundle: List[Dict],
         invalid_citations: List[str] = None,
+        corpus_text: str = None,
     ) -> Dict:
         """
         Generate a natural-language answer with inline citations.
@@ -48,9 +49,16 @@ class AnswerSynthesizer:
 
         citations = self._build_citations(all_chunks)
         logger.info(f"Built {len(citations)} citations from {len(all_chunks)} chunks")
-        answer, llm_failed = self._llm_synthesize(
-            original_query, evidence_bundle, citations, invalid_citations
-        )
+
+        if corpus_text is not None:
+            # Cache-Augmented path: full corpus in Anthropic cached system message
+            answer, llm_failed = self._llm_synthesize_cached(
+                original_query, corpus_text, citations, invalid_citations
+            )
+        else:
+            answer, llm_failed = self._llm_synthesize(
+                original_query, evidence_bundle, citations, invalid_citations
+            )
 
         sub_questions = [item["sub_question"] for item in decomposition["sub_questions"]]
 
@@ -174,6 +182,91 @@ Answer:"""
         except Exception as e:
             logger.error(f"LLM synthesis failed: {e}")
             return self._fallback_answer(original_query, evidence_bundle, citations), True
+
+    def _llm_synthesize_cached(
+        self,
+        original_query: str,
+        corpus_text: str,
+        citations: List[Dict],
+        invalid_citations: List[str] = None,
+    ) -> tuple:
+        """
+        Synthesize using the full regulatory corpus.
+
+        If ANTHROPIC_API_KEY is set, the corpus is placed in an Anthropic
+        cached system message (cache_control=ephemeral) so the KV state is
+        reused across queries — only the question is re-encoded each call.
+        For Gemini/Groq, the corpus is included inline in the user message.
+
+        Returns (answer: str, llm_failed: bool).
+        """
+        import os
+
+        citation_refs = self._format_citation_refs(citations)
+        strict_note   = ""
+        if invalid_citations:
+            forbidden   = "\n".join(f"  - {c}" for c in invalid_citations)
+            strict_note = (
+                f"\n\nCORRECTIVE CONSTRAINT — these citations were NOT found in the "
+                f"regulatory corpus. Do NOT use them:\n{forbidden}\n"
+                f"If you cannot answer without them, say so rather than inventing citations."
+            )
+
+        system_text = (
+            "You are a regulatory compliance expert. Answer questions using ONLY "
+            "the regulatory corpus below.\n\n"
+            "Rules:\n"
+            "- Always cite the FULL law name + section/article inline.\n"
+            "  CORRECT:   \"NYC Local Law 144 § 20-871 requires a bias audit...\"\n"
+            "  CORRECT:   \"EU AI Act Article 9 establishes a risk management system...\"\n"
+            "  INCORRECT: \"§ 20-871 requires...\"  (missing law name)\n"
+            "  INCORRECT: \"Article 9 establishes...\"  (missing law name)\n"
+            "- Only cite sources that appear in the corpus. Do not invent citations.\n"
+            "- If multiple jurisdictions apply, address each one in turn.\n"
+            "- Be concise and precise. If the corpus does not cover the topic, say so.\n\n"
+            + corpus_text
+        )
+
+        user_text = (
+            f"Available Citations:\n{citation_refs}"
+            f"{strict_note}\n\n"
+            f"Question: {original_query}\n\nAnswer:"
+        )
+
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+
+        try:
+            rate_limiter.acquire(estimated_tokens=1500)
+
+            if anthropic_key:
+                import anthropic as _anthropic
+                model  = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001").strip()
+                client = _anthropic.Anthropic(api_key=anthropic_key)
+                response = client.messages.create(
+                    model=model,
+                    max_tokens=2048,
+                    system=[{
+                        "type":          "text",
+                        "text":          system_text,
+                        "cache_control": {"type": "ephemeral"},
+                    }],
+                    messages=[{"role": "user", "content": user_text}],
+                    temperature=0.1,
+                )
+                return response.content[0].text.strip(), False
+            else:
+                # Gemini / Groq: corpus inline in user message, no KV caching
+                full_prompt = system_text + "\n\n" + user_text
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": full_prompt}],
+                    temperature=0.1,
+                )
+                return response.choices[0].message.content.strip(), False
+
+        except Exception as e:
+            logger.error(f"Cached LLM synthesis failed: {e}")
+            return f"LLM synthesis failed: {e}", True
 
     def _format_evidence_for_prompt(self, evidence_bundle: List[Dict]) -> str:
         lines = []
