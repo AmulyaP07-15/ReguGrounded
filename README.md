@@ -76,9 +76,8 @@ regugrounded/
 ├── scripts/
 │   └── manage_cache.py             # CLI for inspecting and clearing query/component caches
 │
-├── cache/                          # Runtime cache files (not committed)
-│   ├── bm25_index.pkl              # Serialised BM25 index
-│   └── query_cache.db              # SQLite query result cache
+├── cache/
+│   └── query_cache.db              # SQLite query result cache (not committed)
 │
 ├── eval/                           # Evaluation suite
 │   ├── compare_models.py           # Three-way benchmark (Standard RAG / ARAG / CAG)
@@ -97,8 +96,7 @@ regugrounded/
 │   │   └── cross_jurisdictional.json # 9 questions (Q45–53)
 │   ├── baselines/
 │   │   ├── standard_rag.py         # Baseline: single retrieve → LLM, no decomposition
-│   │   ├── agentic_rag.py          # Baseline: RLM decomposition + Pinecone retrieval, no validation
-│   │   └── cache_augmented_rag.py  # Baseline: full corpus in context, no decomposition, no validation
+│   │   └── agentic_rag.py          # Baseline: RLM decomposition + Pinecone retrieval, no validation
 │   └── results/                    # Timestamped JSON benchmark reports
 │
 ├── tests/                          # Offline test suite (all passing)
@@ -228,7 +226,7 @@ python query_interface.py
 
 ### Three-way benchmark
 
-`compare_models.py` compares Standard RAG, ARAG, and CAG (ReguGrounded) side by side. A standalone `eval/baselines/cache_augmented_rag.py` script is also available to run the CAG-cache baseline independently.
+`compare_models.py` compares Standard RAG, ARAG, and CAG (ReguGrounded) side by side.
 
 ```bash
 # Quick mode - 10 curated questions (includes exhaustive multi-citation questions)
