@@ -1,8 +1,8 @@
 """
-ReguGrounded — Corrective Agentic Generation (CAG) for Regulatory Compliance Q&A
-=================================================================================
+ReguGrounded — Cache-Augmented Generation (CAG) for Regulatory Compliance Q&A
+==============================================================================
 A multi-stage RAG pipeline that answers regulatory compliance questions grounded
-in retrieved evidence, with built-in citation validation and a corrective retry loop.
+in the full regulatory corpus, with built-in citation validation and a corrective retry loop.
 
 Core pipeline (in execution order):
     QueryInterface        — entry point; runs the full pipeline
