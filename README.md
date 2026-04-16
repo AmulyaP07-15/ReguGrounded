@@ -2,20 +2,19 @@
 
 A multi-stage RAG pipeline for regulatory compliance Q&A, grounded in retrieved evidence with built-in citation validation and a corrective retry loop.
 
-The project benchmarks four systems - Standard RAG, Agentic RAG (ARAG), Cache-Augmented Generation baseline (CAG-cache), and ReguGrounded (CAG) - across 53 curated questions spanning EU AI Act, NYC Local Law 144, Colorado AI Act, NIST AI RMF, and cross-jurisdictional scenarios.
+The project benchmarks three systems - Standard RAG, Agentic RAG (ARAG), and ReguGrounded (Cache-Augmented Generation with corrective retry) - across 53 curated questions spanning EU AI Act, NYC Local Law 144, Colorado AI Act, NIST AI RMF, and cross-jurisdictional scenarios.
 
 ---
 
 ## Architecture
 
-### Four Systems Compared
+### Three Systems Compared
 
 | System | Query Decomposition | Retrieval | Validation | Corrective Retry |
 |---|---|---|---|---|
 | Standard RAG | No | Pinecone top-5 | Post-hoc only | No |
 | ARAG | Yes (RLM) | Pinecone multi-retrieval | Post-hoc only | No |
-| CAG-cache | No | Full corpus in context | Post-hoc only | No |
-| CAG (ReguGrounded) | Yes (RLM) | Full corpus in context | Built-in | Yes |
+| ReguGrounded (CAG) | Yes (RLM) | Full corpus in context | Built-in | Yes |
 
 ### ReguGrounded Pipeline
 
@@ -252,15 +251,13 @@ The three-way benchmark (`eval/compare_models.py`) measures Standard RAG, ARAG, 
 | `corrective_action_taken` | CAG (ReguGrounded) only - how often the corrective retry loop fired |
 | `fallback_rate` | % of queries where LLM was unavailable (excluded from accuracy stats) |
 
-### Why the systems differ
+### Why the three systems differ
 
 **Standard RAG** - single retrieve (top-5 chunks), one LLM call. No decomposition means multi-jurisdiction questions get half the evidence. No validation means hallucinated citations go uncorrected.
 
 **ARAG** - decomposes the query into jurisdiction-specific sub-questions, retrieves per sub-question from Pinecone using hybrid BM25 + semantic search and cross-encoder reranking. More coverage than Standard RAG, but still no corrective loop: if the LLM invents a citation, it stays in the answer.
 
-**CAG-cache** - no retrieval at all. All 395 regulatory chunks (~130k tokens) are loaded into the LLM's context window once at startup. When using Anthropic, the corpus is placed in a cached system message (`cache_control=ephemeral`) so the KV state is reused across queries — only the question is re-encoded per call. Because the full corpus is always in context, exhaustive multi-citation questions cannot fail due to missed retrieval. No decomposition or validation.
-
-**CAG (ReguGrounded)** - builds on CAG-cache: adds RLM query decomposition into jurisdiction-specific sub-questions, plus a citation validator that checks every cited article against the corpus chunk metadata. If `hallucination_rate > 10%`, the answer is re-synthesized with a corrective constraint that explicitly forbids the invalid citations. Exhaustive questions (requiring 6–13 citations) force hallucination in both retrieval-based baselines; only CAG recovers.
+**ReguGrounded (CAG)** - loads the full regulatory corpus (~130k tokens, 395 chunks) into the LLM's context window once at startup instead of retrieving. When using Anthropic, the corpus is placed in a cached system message (`cache_control=ephemeral`) so the KV state is reused across queries. Adds RLM query decomposition and a citation validator that checks every cited article against the corpus chunk metadata. If `hallucination_rate > 10%`, the answer is re-synthesized with a corrective constraint that explicitly forbids the invalid citations. Exhaustive questions (requiring 6–13 citations) force hallucination in both baselines; only ReguGrounded recovers.
 
 ---
 
