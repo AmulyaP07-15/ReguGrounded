@@ -196,6 +196,39 @@ print(result["answer"])
 # metadata          - latency_ms, total_chunks_retrieved, corrective_retry_used, ...
 ```
 
+### Sample query and output
+
+```python
+result = process_query("What bias audit requirements apply to AI hiring tools in New York City?")
+```
+
+```
+Question: What bias audit requirements apply to AI hiring tools in New York City?
+
+Sub-questions:
+  1. What bias audit requirements apply to AI hiring tools in New York City? Focus only on NYC Local Law 144.
+
+Answer:
+NYC Local Law 144 § 20-871 requires employers and employment agencies that use an
+automated employment decision tool (AEDT) to conduct a bias audit no more than one
+year prior to the tool's use. The bias audit must be conducted by an independent
+auditor and must calculate selection rates and score distributions across sex, race,
+and ethnicity categories. NYC Local Law 144 § 20-872 requires employers to notify
+candidates who are residents of New York City at least ten business days before using
+an AEDT, and to make the bias audit summary publicly available on their website.
+
+Citations (2):
+  - NYC Local Law 144 § 20-871
+  - NYC Local Law 144 § 20-872
+
+Validation: 100.0% citations valid (2/2)
+
+Metadata:
+  Jurisdictions: NYC Local Law 144
+  Chunks retrieved: 395
+  Latency: 3241 ms
+```
+
 ### Interactive CLI
 
 ```bash
